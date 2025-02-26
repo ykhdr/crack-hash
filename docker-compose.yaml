@@ -1,0 +1,32 @@
+services:
+  manager:
+    build:
+      context: ./manager
+      dockerfile: Dockerfile
+    container_name: manager
+    ports:
+      - "8080:8080"
+    networks:
+      - crack_net
+
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: worker
+    networks:
+      - crack_net
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: client
+    ports:
+      - "8082:8082"
+    networks:
+      - crack_net
+
+networks:
+  crack_net:
+    driver: bridge
