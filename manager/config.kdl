@@ -1,0 +1,15 @@
+api-server-addr "0.0.0.0:8080"
+worker-server-addr "0.0.0.0:9090"
+dispatcher {
+    request-queue-size 100
+    dispatch-timeout "10s"
+    request-timeout "5s"
+}
+consul {
+    address "consul:8500"
+    health {
+        interval "30s"
+        timeout "5s"
+        http "/api/health"
+    }
+}
