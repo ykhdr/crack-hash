@@ -1,5 +1,20 @@
 version: '3.8'
 services:
+  consul:
+    image: consul:1.15.4
+    container_name: consul
+    command: agent -server -ui -bind=0.0.0.0 -client=0.0.0.0 -bootstrap-expect=1
+    ports:
+      - "8500:8500"
+      - "8600:8600/udp" # dns
+    networks:
+      - crack_net
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8500/v1/status/leader" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
   manager:
     build:
       context: ./manager
@@ -11,17 +26,22 @@ services:
       - "8080:8080"
     networks:
       - crack_net
-
+    depends_on:
+      consul:
+        condition: service_healthy
   worker:
     build:
       context: ./worker
       dockerfile: Dockerfile
       ssh:
         - default
-    container_name: worker
+    deploy:
+      replicas: 1
     networks:
       - crack_net
-
+    depends_on:
+      consul:
+        condition: service_healthy
 networks:
   crack_net:
     driver: bridge
