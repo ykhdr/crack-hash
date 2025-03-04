@@ -1,0 +1,10 @@
+server-port 8081
+manager-url "manager:9090"
+consul {
+    address "consul:8500"
+    health {
+        interval "30s"
+        timeout "5s"
+        http "/api/health"
+    }
+}
