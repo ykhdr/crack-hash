@@ -39,7 +39,7 @@ func NewClient(cfg *Config) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &client{client: cl}, nil
+	return &client{client: cl, cfg: cfg}, nil
 }
 
 func (c *client) HealthServices(serviceName string) ([]*Service, error) {
