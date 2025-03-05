@@ -2,7 +2,6 @@ package consul
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/hashicorp/consul/api"
 )
 
@@ -89,7 +88,7 @@ func (c *client) CatalogServices(serviceName string) ([]*Service, error) {
 }
 
 func (c *client) RegisterService(serviceName, address string, port int) error {
-	serviceId := uuid.New().String()
+	serviceId := fmt.Sprintf("%s:%d", address, port)
 	registrationReq := &api.AgentServiceRegistration{
 		ID:      serviceId,
 		Name:    serviceName,
