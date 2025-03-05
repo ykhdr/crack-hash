@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/worker/config"
+	_ "github.com/ykhdr/crack-hash/worker/logger"
 	"github.com/ykhdr/crack-hash/worker/service"
 	log "log/slog"
 	"os"

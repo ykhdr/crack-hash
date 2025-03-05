@@ -18,6 +18,10 @@ RUN --mount=type=ssh \
     go env -w GONOSUMDB=github.com && \
     go env -w GONOPROXY=github.com
 
+# Теперь отключаем http2 у Git (принудительно HTTP/1.1)
+RUN --mount=type=ssh \
+    git config --global http.version HTTP/1.1
+
 COPY go.mod go.sum ./
 RUN --mount=type=ssh go mod download
 
@@ -27,5 +31,5 @@ RUN --mount=type=ssh env CGO_ENABLED=0 GOOS=linux go build -o worker
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/worker .
-EXPOSE 8081
+COPY --from=builder /app/config.kdl .
 ENTRYPOINT ["./worker"]

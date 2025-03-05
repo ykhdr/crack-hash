@@ -31,14 +31,17 @@ func DefaultConfig() *WorkerConfig {
 	}
 }
 
-func InitializeConfig(args []string) (*WorkerConfig, error) {
+func InitializeConfig(args []string) (res *WorkerConfig, _ error) {
 	cfg := *DefaultConfig()
 	addr, err := findAvailableIPv4Addr()
 	if err != nil {
 		return nil, err
 	}
-	cfg.Address = addr
-	cfg.Url = fmt.Sprintf("%s:%d", addr, cfg.ServerPort)
+	defer func() {
+		res.Address = addr
+		res.Url = fmt.Sprintf("%s:%d", addr, res.ServerPort)
+		res.ConsulConfig.Health.Http = "http://" + res.Url + res.ConsulConfig.Health.Http
+	}()
 	return config.InitializeConfig[WorkerConfig](args, cfg)
 }
 
@@ -47,20 +50,15 @@ func findAvailableIPv4Addr() (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	for _, iface := range ifaces {
-		// Пропускаем выключенные (нет флага Up) и loopback-интерфейсы
 		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
 			continue
 		}
-
 		addrs, err := iface.Addrs()
 		if err != nil {
 			return "", err
 		}
-
 		for _, addr := range addrs {
-			// Разбираем адрес, проверяем, IPv4 ли это
 			if ipNet, ok := addr.(*net.IPNet); ok {
 				if ip4 := ipNet.IP.To4(); ip4 != nil {
 					return ip4.String(), nil
@@ -68,6 +66,5 @@ func findAvailableIPv4Addr() (string, error) {
 			}
 		}
 	}
-
 	return "", errors.New("no valid network interface found")
 }

@@ -6,6 +6,8 @@ import (
 )
 
 func init() {
-	logger := log.New(log.NewTextHandler(os.Stdout, nil)).WithGroup("WORKER")
+	logger := log.New(log.NewTextHandler(os.Stdout, &log.HandlerOptions{
+		Level: log.LevelDebug,
+	}))
 	log.SetDefault(logger)
 }

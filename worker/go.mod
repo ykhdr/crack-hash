@@ -4,7 +4,7 @@ go 1.23.0
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/ykhdr/crack-hash/common v0.2.0
+	github.com/ykhdr/crack-hash/common v0.2.2
 )
 
 require (

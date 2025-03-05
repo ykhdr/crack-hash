@@ -33,9 +33,9 @@ func (s *Server) Start() {
 		return
 	}
 	r := mux.NewRouter()
+	r.Use(middleware.LoggingMiddleware(log.Debug))
 	r.HandleFunc("/internal/api/worker/hash/crack/task", s.handleCrackTask).Methods("POST")
 	r.HandleFunc("/api/health", s.handleHealth).Methods("GET")
-	r.Use(middleware.LoggingMiddleware)
 	srv := &http.Server{
 		Handler: r,
 		Addr:    s.cfg.Url,
@@ -102,4 +102,8 @@ func (s *Server) sendResponseToManager(resp api.CrackHashWorkerResponse) {
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte("OK"))
+	if err != nil {
+		log.Warn("Failed to write health response", "err", err)
+	}
 }

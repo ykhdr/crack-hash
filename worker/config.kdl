@@ -3,8 +3,9 @@ manager-url "manager:9090"
 consul {
     address "consul:8500"
     health {
-        interval "30s"
+        interval "5s"
         timeout "5s"
         http "/api/health"
+        deregister-timeout "10s"
     }
 }
