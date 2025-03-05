@@ -1,13 +1,15 @@
 package middleware
 
 import (
-	log "log/slog"
+	"github.com/gorilla/mux"
 	"net/http"
 )
 
-func LoggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Debug("Incoming request", "method", r.Method, "url", r.URL.Path)
-		next.ServeHTTP(w, r)
-	})
+func LoggingMiddleware(log func(msg string, args ...any)) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			log("Incoming request", "method", r.Method, "url", r.URL.Path)
+			next.ServeHTTP(w, r)
+		})
+	}
 }

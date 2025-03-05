@@ -1,6 +1,7 @@
 package consul
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/hashicorp/consul/api"
 )
@@ -8,6 +9,8 @@ import (
 type Service struct {
 	id        string
 	address   string
+	url       string
+	port      int
 	isHealthy bool
 }
 
@@ -17,6 +20,14 @@ func (s *Service) Id() string {
 
 func (s *Service) Address() string {
 	return s.address
+}
+
+func (s *Service) Port() int {
+	return s.port
+}
+
+func (s *Service) Url() string {
+	return s.url
 }
 
 func (s *Service) IsHealthy() bool {
@@ -52,6 +63,8 @@ func (c *client) HealthServices(serviceName string) ([]*Service, error) {
 		services = append(services, &Service{
 			id:        srv.Service.ID,
 			address:   srv.Service.Address,
+			port:      srv.Service.Port,
+			url:       fmt.Sprintf("http://%s:%d", srv.Service.Address, srv.Service.Port),
 			isHealthy: true,
 		})
 	}
