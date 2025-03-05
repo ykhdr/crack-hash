@@ -4,6 +4,7 @@ import (
 	"github.com/ykhdr/crack-hash/common"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/manager/config"
+	_ "github.com/ykhdr/crack-hash/manager/logger"
 	"github.com/ykhdr/crack-hash/manager/service"
 	log "log/slog"
 	"os"

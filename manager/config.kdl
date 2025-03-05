@@ -3,7 +3,7 @@ worker-server-addr "0.0.0.0:9090"
 dispatcher {
     request-queue-size 100
     dispatch-timeout "10s"
-    request-timeout "5s"
+    request-timeout "2m"
 }
 consul {
     address "consul:8500"

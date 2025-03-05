@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/ykhdr/crack-hash/common"
 	"github.com/ykhdr/crack-hash/common/api"
@@ -114,19 +115,22 @@ func (s *Dispatcher) dispatchTasksToWorkers(services []*consul.Service, reqInfo 
 func sendRequestToWorker(reqXml api.CrackHashManagerRequest, service *consul.Service) error {
 	bytesToSend, err := xml.Marshal(reqXml)
 	if err != nil {
+		log.Warn("Failed to marshal request", "err", err)
 		return errors.New("failed to marshal request XML")
 	}
-	resp, err := http.Post(service.Address(), "application/xml",
+	resp, err := http.Post(fmt.Sprintf("%s/%s", service.Url(), "internal/api/worker/hash/crack/task"), "application/xml",
 		io.NopCloser(common.NewBytesReader(bytesToSend)),
 	)
 	if err != nil {
+		log.Warn("Failed to send request to worker", "err", err)
 		return errors.New("failed to send request to worker")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
+		log.Warn("Wrong status code", "status", resp.Status, "statusCode", resp.StatusCode)
 		return errors.New("worker responded with status code: " + resp.Status)
 	}
-	log.Info("Request sent to worker successfully")
+	log.Debug("Request sent to worker successfully")
 	return nil
 }
 

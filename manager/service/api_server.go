@@ -25,10 +25,10 @@ func NewApiServer(cfg *config.ManagerConfig, dispatcher *Dispatcher) *ApiServer 
 
 func (s *ApiServer) Start() {
 	r := mux.NewRouter()
+	r.Use(middleware.LoggingMiddleware(log.Debug))
 	r.HandleFunc("/api/hash/crack", s.handleHashCrack).Methods("POST")
 	r.HandleFunc("/api/hash/status", s.handleHashStatus).Methods("GET")
 	r.HandleFunc("/api/health", s.handleHealth).Methods("GET")
-	r.Use(middleware.LoggingMiddleware)
 	log.Info("Api server is running", "addr", s.addr)
 	if err := http.ListenAndServe(s.addr, r); err != nil {
 		log.Error("Manager server failed", "err", err)
@@ -38,6 +38,7 @@ func (s *ApiServer) Start() {
 func (s *ApiServer) handleHashCrack(w http.ResponseWriter, r *http.Request) {
 	var req requests.CrackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Warn("Invalid request", "err", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -69,7 +70,7 @@ func (s *ApiServer) handleHashStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := map[string]interface{}{
 		"status": info.Status,
-		"data":   nil,
+		"data":   []string{},
 	}
 	if info.Status == StatusReady {
 		resp["data"] = info.FoundData
@@ -85,4 +86,8 @@ func (s *ApiServer) handleHashStatus(w http.ResponseWriter, r *http.Request) {
 
 func (s *ApiServer) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte("OK"))
+	if err != nil {
+		log.Warn("Failed to write health response", "err", err)
+	}
 }

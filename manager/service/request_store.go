@@ -36,11 +36,14 @@ type RequestInfo struct {
 
 func (r *RequestInfo) Copy() *RequestInfo {
 	return &RequestInfo{
-		ID:        r.ID,
-		Status:    r.Status,
-		Request:   r.Request,
-		FoundData: r.FoundData,
-		CreatedAt: r.CreatedAt,
+		ID:                r.ID,
+		Status:            r.Status,
+		Request:           r.Request,
+		FoundData:         r.FoundData,
+		CreatedAt:         r.CreatedAt,
+		ServiceCount:      r.ServiceCount,
+		ReadyServiceCount: r.ReadyServiceCount,
+		ErrorReason:       r.ErrorReason,
 	}
 }
 
