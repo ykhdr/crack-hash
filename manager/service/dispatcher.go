@@ -29,6 +29,7 @@ var (
 
 type Dispatcher struct {
 	requestTimeout time.Duration
+	healthTimeout  time.Duration
 	consulClient   consul.Client
 }
 
@@ -39,6 +40,7 @@ func NewDispatcher(cfg *config.DispatcherConfig, consulClient consul.Client) *Di
 	dispatchTimeout = cfg.DispatchTimeout
 	return &Dispatcher{
 		requestTimeout: cfg.RequestTimeout,
+		healthTimeout:  cfg.HealthTimeout,
 		consulClient:   consulClient,
 	}
 }
@@ -73,13 +75,16 @@ func (s *Dispatcher) handleRequest(req *crackRequest) {
 		reqInfo.ErrorReason = "No services found"
 	}
 	reqInfo.ServiceCount = len(services)
+	reqInfo.Services = services
 	GetRequestStore().Save(reqInfo)
 	if reqInfo.Status != StatusError {
-		go s.dispatchTasksToWorkers(services, reqInfo)
+		go s.dispatchTasksToWorkers(reqInfo)
+		go startCheckRequestStatus(reqInfo.ID, s.healthTimeout)
 	}
 }
 
-func (s *Dispatcher) dispatchTasksToWorkers(services []*consul.Service, reqInfo *RequestInfo) {
+func (s *Dispatcher) dispatchTasksToWorkers(reqInfo *RequestInfo) {
+	services := reqInfo.Services
 	partCount := len(services)
 	for partNumber := 0; partNumber < partCount; partNumber++ {
 		reqXml := api.CrackHashManagerRequest{
@@ -159,5 +164,38 @@ func DispatchRequest(req *requests.CrackRequest) (RequestId, error) {
 		return reqId, nil
 	case <-time.After(dispatchTimeout):
 		return "", ErrorQueueFull
+	}
+}
+
+func startCheckRequestStatus(reqId RequestId, timeout time.Duration) {
+	ticker := time.NewTicker(timeout)
+	defer ticker.Stop()
+	for {
+		<-ticker.C
+		reqInfo, exists := GetRequestStore().Get(reqId)
+		if !exists {
+			log.Warn("Check request error: Request does not exist", "reqId", reqId)
+			ticker.Stop()
+			return
+		}
+		services := reqInfo.Services
+		for _, srv := range services {
+			resp, err := http.Get(fmt.Sprintf("%s/api/health", srv.Url()))
+			if err != nil {
+				log.Warn("Check request error:Failed to send health request to worker", "err", err)
+				reqInfo.Status = StatusFailed
+				reqInfo.ErrorReason = "Failed to send health request to worker"
+				GetRequestStore().Save(reqInfo)
+				return
+			}
+			if resp.StatusCode != http.StatusOK {
+				log.Warn("Check request error: Wrong worker health status code", "workerId", srv.Id(),
+					"status", resp.Status, "statusCode", resp.StatusCode)
+				reqInfo.Status = StatusFailed
+				reqInfo.ErrorReason = "Wrong worker health status code"
+				GetRequestStore().Save(reqInfo)
+				return
+			}
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/manager/requests"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ const (
 	StatusInProgress RequestStatus = "IN_PROGRESS"
 	StatusReady      RequestStatus = "READY"
 	StatusError      RequestStatus = "ERROR"
+	StatusFailed     RequestStatus = "FAILED"
 )
 
 type RequestId string
@@ -32,6 +34,7 @@ type RequestInfo struct {
 	ServiceCount      int
 	ReadyServiceCount int
 	ErrorReason       string
+	Services          []*consul.Service
 }
 
 func (r *RequestInfo) Copy() *RequestInfo {
@@ -44,6 +47,7 @@ func (r *RequestInfo) Copy() *RequestInfo {
 		ServiceCount:      r.ServiceCount,
 		ReadyServiceCount: r.ReadyServiceCount,
 		ErrorReason:       r.ErrorReason,
+		Services:          r.Services,
 	}
 }
 

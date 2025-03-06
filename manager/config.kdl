@@ -4,6 +4,7 @@ dispatcher {
     request-queue-size 100
     dispatch-timeout "10s"
     request-timeout "2m"
+    health-timeout "10s"
 }
 consul {
     address "consul:8500"

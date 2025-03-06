@@ -10,6 +10,7 @@ type DispatcherConfig struct {
 	RequestQueueSize int           `kdl:"request-queue-size"`
 	DispatchTimeout  time.Duration `kdl:"dispatch-timeout"`
 	RequestTimeout   time.Duration `kdl:"request-timeout"`
+	HealthTimeout    time.Duration `kdl:"health-timeout"`
 }
 
 type ManagerConfig struct {
@@ -27,13 +28,14 @@ func DefaultConfig() *ManagerConfig {
 			RequestQueueSize: 1024,
 			DispatchTimeout:  5 * time.Second,
 			RequestTimeout:   30 * time.Second,
+			HealthTimeout:    5 * time.Second,
 		},
 		ConsulConfig: &consul.Config{
 			Address: "consul:8500",
 			Health: &consul.HealthConfig{
 				Interval: "5s",
 				Timeout:  "30s",
-				Http:     "/health",
+				Http:     "/api/health",
 			},
 		},
 	}
