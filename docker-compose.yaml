@@ -36,7 +36,7 @@ services:
       ssh:
         - default
     deploy:
-      replicas: 2
+      replicas: 3
     networks:
       - crack_net
     depends_on:
