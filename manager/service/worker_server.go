@@ -50,17 +50,29 @@ func (s *WorkerServer) handleWorkerResponse(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Request not found", http.StatusNotFound)
 		return
 	}
-	if reqInfo.Status == StatusError || reqInfo.ReadyServiceCount == reqInfo.ServiceCount {
+	if reqInfo.Status == StatusError || reqInfo.ReadyServiceCount+reqInfo.FailedServiceCount == reqInfo.ServiceCount {
 		log.Warn("Request is already canceled", "id", workerResp.RequestId)
 		http.Error(w, "Request failed", http.StatusInternalServerError)
 		return
 	}
 	reqInfo.FoundData = append(reqInfo.FoundData, workerResp.Found...)
 	reqInfo.ReadyServiceCount++
-	if reqInfo.ReadyServiceCount == reqInfo.ServiceCount {
-		reqInfo.Status = StatusReady
-	}
+	checkOnReady(reqInfo)
 	GetRequestStore().Save(reqInfo)
 	w.WriteHeader(http.StatusOK)
 	log.Debug("Worker server response ok", "id", workerResp.RequestId)
+}
+
+func checkOnReady(reqInfo *RequestInfo) {
+	if reqInfo.FailedServiceCount == reqInfo.ServiceCount {
+		reqInfo.Status = StatusError
+		return
+	}
+	if reqInfo.ReadyServiceCount+reqInfo.FailedServiceCount == reqInfo.ServiceCount {
+		if reqInfo.FailedServiceCount > 0 {
+			reqInfo.Status = StatusPartialReady
+		} else {
+			reqInfo.Status = StatusReady
+		}
+	}
 }

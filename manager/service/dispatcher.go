@@ -183,16 +183,18 @@ func startCheckRequestStatus(reqId RequestId, timeout time.Duration) {
 			resp, err := http.Get(fmt.Sprintf("%s/api/health", srv.Url()))
 			if err != nil {
 				log.Warn("Check request error:Failed to send health request to worker", "err", err)
-				reqInfo.Status = StatusFailed
-				reqInfo.ErrorReason = "Failed to send health request to worker"
+				reqInfo.FailedServiceCount++
+				reqInfo.ErrorReason += fmt.Sprintf("Failed to send health request to worker %s\n", srv.Id())
+				checkOnReady(reqInfo)
 				GetRequestStore().Save(reqInfo)
 				return
 			}
 			if resp.StatusCode != http.StatusOK {
 				log.Warn("Check request error: Wrong worker health status code", "workerId", srv.Id(),
 					"status", resp.Status, "statusCode", resp.StatusCode)
-				reqInfo.Status = StatusFailed
-				reqInfo.ErrorReason = "Wrong worker health status code"
+				reqInfo.FailedServiceCount++
+				reqInfo.ErrorReason += fmt.Sprintf("Wrong worker %s health status code\n", srv.Id())
+				checkOnReady(reqInfo)
 				GetRequestStore().Save(reqInfo)
 				return
 			}

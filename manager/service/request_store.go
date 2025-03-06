@@ -10,11 +10,11 @@ import (
 type RequestStatus string
 
 const (
-	StatusNew        RequestStatus = "NEW"
-	StatusInProgress RequestStatus = "IN_PROGRESS"
-	StatusReady      RequestStatus = "READY"
-	StatusError      RequestStatus = "ERROR"
-	StatusFailed     RequestStatus = "FAILED"
+	StatusNew          RequestStatus = "NEW"
+	StatusInProgress   RequestStatus = "IN_PROGRESS"
+	StatusReady        RequestStatus = "READY"
+	StatusError        RequestStatus = "ERROR"
+	StatusPartialReady RequestStatus = "PARTIAL_READY"
 )
 
 type RequestId string
@@ -26,28 +26,30 @@ type crackRequest struct {
 }
 
 type RequestInfo struct {
-	ID                RequestId
-	Status            RequestStatus
-	Request           *requests.CrackRequest
-	FoundData         []string
-	CreatedAt         time.Time
-	ServiceCount      int
-	ReadyServiceCount int
-	ErrorReason       string
-	Services          []*consul.Service
+	ID                 RequestId
+	Status             RequestStatus
+	Request            *requests.CrackRequest
+	FoundData          []string
+	CreatedAt          time.Time
+	ServiceCount       int
+	ReadyServiceCount  int
+	FailedServiceCount int
+	ErrorReason        string
+	Services           []*consul.Service
 }
 
 func (r *RequestInfo) Copy() *RequestInfo {
 	return &RequestInfo{
-		ID:                r.ID,
-		Status:            r.Status,
-		Request:           r.Request,
-		FoundData:         r.FoundData,
-		CreatedAt:         r.CreatedAt,
-		ServiceCount:      r.ServiceCount,
-		ReadyServiceCount: r.ReadyServiceCount,
-		ErrorReason:       r.ErrorReason,
-		Services:          r.Services,
+		ID:                 r.ID,
+		Status:             r.Status,
+		Request:            r.Request,
+		FoundData:          r.FoundData,
+		CreatedAt:          r.CreatedAt,
+		ServiceCount:       r.ServiceCount,
+		ReadyServiceCount:  r.ReadyServiceCount,
+		ErrorReason:        r.ErrorReason,
+		Services:           r.Services,
+		FailedServiceCount: r.FailedServiceCount,
 	}
 }
 
