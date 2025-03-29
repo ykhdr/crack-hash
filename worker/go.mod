@@ -1,10 +1,12 @@
 module github.com/ykhdr/crack-hash/worker
 
-go 1.23.0
+go 1.24.1
+
+replace 	github.com/ykhdr/crack-hash/common v0.0.0-local => ../common
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/ykhdr/crack-hash/common v0.2.3
+	github.com/ykhdr/crack-hash/common v0.0.0-local
 )
 
 require (

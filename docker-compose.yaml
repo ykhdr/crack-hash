@@ -6,7 +6,6 @@ services:
     command: agent -server -ui -bind=0.0.0.0 -client=0.0.0.0 -bootstrap-expect=1
     ports:
       - "8500:8500"
-      - "8600:8600/udp" # dns
     networks:
       - crack_net
     healthcheck:
@@ -17,10 +16,7 @@ services:
       start_period: 5s
   manager:
     build:
-      context: ./manager
-      dockerfile: Dockerfile
-      ssh:
-        - default
+      dockerfile: ./manager/Dockerfile
     container_name: manager
     ports:
       - "8080:8080"
@@ -31,10 +27,7 @@ services:
         condition: service_healthy
   worker:
     build:
-      context: ./worker
-      dockerfile: Dockerfile
-      ssh:
-        - default
+      dockerfile: ./worker/Dockerfile
     deploy:
       replicas: 3
     networks:
