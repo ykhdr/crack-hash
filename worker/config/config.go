@@ -17,6 +17,7 @@ func (w *ServerConfig) Url() string {
 }
 
 type WorkerConfig struct {
+	config.LogConfig
 	ServerConfig
 	ManagerUrl   string         `kdl:"manager-url"`
 	ConsulConfig *consul.Config `kdl:"consul"`

@@ -14,6 +14,7 @@ type DispatcherConfig struct {
 }
 
 type ManagerConfig struct {
+	config.LogConfig
 	ApiServerAddr    string            `kdl:"api-server-addr"`
 	WorkerServerAddr string            `kdl:"worker-server-addr"`
 	DispatcherConfig *DispatcherConfig `kdl:"dispatcher"`

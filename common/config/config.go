@@ -19,5 +19,6 @@ func InitializeConfig[T any](args []string, defaultCfg T) (*T, error) {
 	if err != nil {
 		return nilT, fmt.Errorf("unmarshal kdl: %w", err)
 	}
+	setupLogger(config)
 	return &config, nil
 }

@@ -3,7 +3,7 @@ module github.com/ykhdr/crack-hash/common
 go 1.24.1
 
 require (
-	github.com/google/uuid v1.6.0
+	github.com/rs/zerolog v1.34.0
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/consul/api v1.31.2
 	github.com/sblinch/kdl-go v0.0.0-20240410000746-21754ba9ac55
