@@ -1,4 +1,4 @@
-package requests
+package api
 
 type CrackRequest struct {
 	Hash      string `json:"hash"`

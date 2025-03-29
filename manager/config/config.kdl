@@ -1,4 +1,4 @@
-log-level: "debug"
+log-level "debug"
 api-server-addr "0.0.0.0:8080"
 worker-server-addr "0.0.0.0:9090"
 dispatcher {

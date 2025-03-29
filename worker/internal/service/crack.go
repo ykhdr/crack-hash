@@ -3,13 +3,13 @@ package service
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"github.com/ykhdr/crack-hash/common/api"
+	"github.com/ykhdr/crack-hash/manager/pkg/messages"
 	log "log/slog"
 	"math"
 	"strings"
 )
 
-func crackMD5(req *api.CrackHashManagerRequest) []string {
+func crackMD5(req *messages.CrackHashManagerRequest) []string {
 	found := []string{}
 	targetHash := strings.ToLower(req.Hash)
 

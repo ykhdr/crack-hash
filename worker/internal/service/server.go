@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/ykhdr/crack-hash/common"
-	"github.com/ykhdr/crack-hash/common/api"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/common/middleware"
+	"github.com/ykhdr/crack-hash/manager/pkg/messages"
 	"github.com/ykhdr/crack-hash/worker/config"
+	"github.com/ykhdr/crack-hash/worker/pkg/worker"
 	"io"
 	log "log/slog"
 	"net/http"
@@ -27,7 +28,7 @@ func NewServer(cfg *config.WorkerConfig, consulClient consul.Client) *Server {
 }
 
 func (s *Server) Start() {
-	err := s.consulClient.RegisterService(common.WorkerService, s.cfg.Address, s.cfg.Port)
+	err := s.consulClient.RegisterService(worker.ServiceName, s.cfg.Address, s.cfg.Port)
 	if err != nil {
 		log.Warn("Error register service in consul", "err", err)
 		return
@@ -52,7 +53,7 @@ func (s *Server) handleCrackTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read body", http.StatusBadRequest)
 		return
 	}
-	var reqXml api.CrackHashManagerRequest
+	var reqXml messages.CrackHashManagerRequest
 	if err := xml.Unmarshal(bodyBytes, &reqXml); err != nil {
 		http.Error(w, "Invalid XML", http.StatusBadRequest)
 		return
@@ -62,10 +63,10 @@ func (s *Server) handleCrackTask(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Task received. Processing..."))
 }
 
-func (s *Server) crackTask(req *api.CrackHashManagerRequest) {
+func (s *Server) crackTask(req *messages.CrackHashManagerRequest) {
 	log.Debug("Start cracking hash", "request", req)
 	found := crackMD5(req)
-	respXml := api.CrackHashWorkerResponse{
+	respXml := messages.CrackHashWorkerResponse{
 		RequestId: req.RequestId,
 		Found:     found,
 	}
@@ -73,7 +74,7 @@ func (s *Server) crackTask(req *api.CrackHashManagerRequest) {
 }
 
 // Отправка результата менеджеру
-func (s *Server) sendResponseToManager(resp api.CrackHashWorkerResponse) {
+func (s *Server) sendResponseToManager(resp messages.CrackHashWorkerResponse) {
 	managerURL := fmt.Sprintf("http://%s/internal/api/manager/hash/crack/request", s.cfg.ManagerUrl)
 	bytesToSend, err := xml.Marshal(resp)
 	if err != nil {

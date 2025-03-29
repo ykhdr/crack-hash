@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/ykhdr/crack-hash/common/config"
 	"github.com/ykhdr/crack-hash/common/consul"
-	"github.com/ykhdr/crack-hash/worker/net"
+	"github.com/ykhdr/crack-hash/worker/internal/net"
 )
 
 type ServerConfig struct {

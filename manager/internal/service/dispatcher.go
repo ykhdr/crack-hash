@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/ykhdr/crack-hash/common"
-	"github.com/ykhdr/crack-hash/common/api"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/manager/config"
-	"github.com/ykhdr/crack-hash/manager/requests"
+	"github.com/ykhdr/crack-hash/manager/pkg/api"
+	"github.com/ykhdr/crack-hash/manager/pkg/messages"
+	"github.com/ykhdr/crack-hash/worker/pkg/worker"
 	"io"
 	log "log/slog"
 	"net/http"
@@ -64,7 +65,7 @@ func (s *Dispatcher) handleRequest(req *crackRequest) {
 		CreatedAt: req.CreatedAt,
 		FoundData: make([]string, 0),
 	}
-	services, err := s.consulClient.HealthServices(common.WorkerService)
+	services, err := s.consulClient.HealthServices(worker.ServiceName)
 	if err != nil {
 		log.Error("Error getting health services", "reqID", req.ID, "err", err)
 		reqInfo.Status = StatusError
@@ -87,13 +88,13 @@ func (s *Dispatcher) dispatchTasksToWorkers(reqInfo *RequestInfo) {
 	services := reqInfo.Services
 	partCount := len(services)
 	for partNumber := 0; partNumber < partCount; partNumber++ {
-		reqXml := api.CrackHashManagerRequest{
+		reqXml := messages.CrackHashManagerRequest{
 			RequestId:  string(reqInfo.ID),
 			PartNumber: partNumber,
 			PartCount:  partCount,
 			Hash:       reqInfo.Request.Hash,
 			MaxLength:  reqInfo.Request.MaxLength,
-			Alphabet: api.Alphabet{
+			Alphabet: messages.Alphabet{
 				Symbols: generateAlphabet(),
 			},
 		}
@@ -117,7 +118,7 @@ func (s *Dispatcher) dispatchTasksToWorkers(reqInfo *RequestInfo) {
 	})
 }
 
-func sendRequestToWorker(reqXml api.CrackHashManagerRequest, service *consul.Service) error {
+func sendRequestToWorker(reqXml messages.CrackHashManagerRequest, service *consul.Service) error {
 	bytesToSend, err := xml.Marshal(reqXml)
 	if err != nil {
 		log.Warn("Failed to marshal request", "err", err)
@@ -149,7 +150,7 @@ func generateAlphabet() []string {
 	return result
 }
 
-func DispatchRequest(req *requests.CrackRequest) (RequestId, error) {
+func DispatchRequest(req *api.CrackRequest) (RequestId, error) {
 	m.RLock()
 	defer m.RUnlock()
 	requestId, _ := uuid.NewUUID()

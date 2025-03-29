@@ -1,4 +1,4 @@
-log-level: "debug"
+log-level "debug"
 server-port 8081
 manager-url "manager:9090"
 consul {

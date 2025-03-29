@@ -4,8 +4,8 @@ import (
 	"github.com/ykhdr/crack-hash/common"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/manager/config"
-	_ "github.com/ykhdr/crack-hash/manager/logger"
-	"github.com/ykhdr/crack-hash/manager/service"
+	_ "github.com/ykhdr/crack-hash/manager/internal/logger"
+	service2 "github.com/ykhdr/crack-hash/manager/internal/service"
 	log "log/slog"
 	"os"
 )
@@ -22,9 +22,9 @@ func main() {
 		log.Warn("Error initializing consulClient", "err", err)
 		return
 	}
-	dispatcherSrv := service.NewDispatcher(cfg.DispatcherConfig, consulClient)
-	apiSrv := service.NewApiServer(cfg, dispatcherSrv)
-	workerSrv := service.NewWorkerServer(cfg)
+	dispatcherSrv := service2.NewDispatcher(cfg.DispatcherConfig, consulClient)
+	apiSrv := service2.NewApiServer(cfg, dispatcherSrv)
+	workerSrv := service2.NewWorkerServer(cfg)
 
 	servers := []common.Server{
 		dispatcherSrv,

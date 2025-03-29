@@ -3,9 +3,9 @@ package service
 import (
 	"encoding/xml"
 	"github.com/gorilla/mux"
-	"github.com/ykhdr/crack-hash/common/api"
 	"github.com/ykhdr/crack-hash/common/middleware"
 	"github.com/ykhdr/crack-hash/manager/config"
+	"github.com/ykhdr/crack-hash/manager/pkg/messages"
 	"io"
 	log "log/slog"
 	"net/http"
@@ -38,7 +38,7 @@ func (s *WorkerServer) handleWorkerResponse(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Failed to read body", http.StatusBadRequest)
 		return
 	}
-	var workerResp api.CrackHashWorkerResponse
+	var workerResp messages.CrackHashWorkerResponse
 	if err := xml.Unmarshal(bodyBytes, &workerResp); err != nil {
 		log.Warn("Failed to unmarshal worker response body", "err", err)
 		http.Error(w, "Invalid XML", http.StatusBadRequest)

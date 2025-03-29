@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/ykhdr/crack-hash/common/consul"
-	"github.com/ykhdr/crack-hash/manager/requests"
+	"github.com/ykhdr/crack-hash/manager/pkg/api"
 	"sync"
 	"time"
 )
@@ -21,14 +21,14 @@ type RequestId string
 
 type crackRequest struct {
 	ID        RequestId
-	Request   *requests.CrackRequest
+	Request   *api.CrackRequest
 	CreatedAt time.Time
 }
 
 type RequestInfo struct {
 	ID                 RequestId
 	Status             RequestStatus
-	Request            *requests.CrackRequest
+	Request            *api.CrackRequest
 	FoundData          []string
 	CreatedAt          time.Time
 	ServiceCount       int

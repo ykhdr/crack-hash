@@ -5,7 +5,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/ykhdr/crack-hash/common/middleware"
 	"github.com/ykhdr/crack-hash/manager/config"
-	"github.com/ykhdr/crack-hash/manager/requests"
+	"github.com/ykhdr/crack-hash/manager/pkg/api"
 	log "log/slog"
 	"net/http"
 )
@@ -36,7 +36,7 @@ func (s *ApiServer) Start() {
 }
 
 func (s *ApiServer) handleHashCrack(w http.ResponseWriter, r *http.Request) {
-	var req requests.CrackRequest
+	var req api.CrackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Warn("Invalid request", "err", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
