@@ -27,7 +27,7 @@ func NewServer(cfg *config.WorkerConfig, consulClient consul.Client) *Server {
 }
 
 func (s *Server) Start() {
-	err := s.consulClient.RegisterService(common.WorkerService, s.cfg.Address, s.cfg.ServerPort)
+	err := s.consulClient.RegisterService(common.WorkerService, s.cfg.Address, s.cfg.Port)
 	if err != nil {
 		log.Warn("Error register service in consul", "err", err)
 		return
@@ -38,9 +38,9 @@ func (s *Server) Start() {
 	r.HandleFunc("/api/health", s.handleHealth).Methods("GET")
 	srv := &http.Server{
 		Handler: r,
-		Addr:    s.cfg.Url,
+		Addr:    s.cfg.Url(),
 	}
-	log.Info("Worker is running", "address", s.cfg.Url)
+	log.Info("Worker is running", "address", s.cfg.Url())
 	if err = srv.ListenAndServe(); err != nil {
 		log.Warn("Worker server failed", "err", err)
 	}
