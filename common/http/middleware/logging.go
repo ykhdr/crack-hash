@@ -2,15 +2,14 @@ package middleware
 
 import (
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog"
 	"net/http"
 )
 
-type logger func(msg string, args ...any)
-
-func LoggingMiddleware(log logger) mux.MiddlewareFunc {
+func LoggingMiddleware(l zerolog.Logger) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			log("Incoming request", "method", r.Method, "url", r.URL.Path)
+			l.Debug().Str("method", r.Method).Str("path", r.URL.Path).Msg("Incoming request")
 			next.ServeHTTP(w, r)
 		})
 	}

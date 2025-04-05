@@ -17,6 +17,6 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/worker ./cmd/worker
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/worker/bin/worker .
-COPY --from=builder /app/worker/config/config.kdl .
+COPY --from=builder /app/worker/config/config.kdl config/
 
 ENTRYPOINT ["/app/worker"]

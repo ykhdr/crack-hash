@@ -17,7 +17,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/manager ./cmd/manager
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/manager/bin/manager .
-COPY --from=builder /app/manager/config/config.kdl .
+COPY --from=builder /app/manager/config/config.kdl config/
 
 EXPOSE 8080
 ENTRYPOINT ["/app/manager"]

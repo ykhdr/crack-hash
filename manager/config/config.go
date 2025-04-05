@@ -39,6 +39,9 @@ func DefaultConfig() *ManagerConfig {
 				Http:     "/api/health",
 			},
 		},
+		LogConfig: config.LogConfig{
+			LogLevel: "info",
+		},
 	}
 }
 

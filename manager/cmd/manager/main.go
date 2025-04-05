@@ -1,39 +1,42 @@
 package main
 
 import (
-	"github.com/ykhdr/crack-hash/common"
+	"context"
+	"github.com/rs/zerolog/log"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/manager/config"
-	_ "github.com/ykhdr/crack-hash/manager/internal/logger"
-	service2 "github.com/ykhdr/crack-hash/manager/internal/service"
-	log "log/slog"
+	"github.com/ykhdr/crack-hash/manager/internal/dispatcher"
+	"github.com/ykhdr/crack-hash/manager/internal/server/api"
+	"github.com/ykhdr/crack-hash/manager/internal/server/worker"
+	"github.com/ykhdr/crack-hash/manager/internal/store/requeststore"
+	"golang.org/x/sync/errgroup"
 	"os"
 )
 
 func main() {
 	cfg, err := config.InitializeConfig(os.Args[1:])
 	if err != nil {
-		log.Warn("Error initializing config", "err", err)
-		return
+		log.Fatal().Err(err).Msgf("Error initializing config")
 	}
-
 	consulClient, err := consul.NewClient(cfg.ConsulConfig)
 	if err != nil {
-		log.Warn("Error initializing consulClient", "err", err)
-		return
+		log.Fatal().Err(err).Msgf("Error initializing consul client")
 	}
-	dispatcherSrv := service2.NewDispatcher(cfg.DispatcherConfig, consulClient)
-	apiSrv := service2.NewApiServer(cfg, dispatcherSrv)
-	workerSrv := service2.NewWorkerServer(cfg)
-
-	servers := []common.Server{
-		dispatcherSrv,
-		apiSrv,
-		workerSrv,
+	requestStore := requeststore.NewRequestStore()
+	dispatcherSrv := dispatcher.NewDispatcher(cfg.DispatcherConfig, log.Logger, consulClient, requestStore)
+	apiSrv := api.NewServer(cfg, log.Logger, dispatcherSrv, requestStore)
+	workerSrv := worker.NewServer(cfg, log.Logger, requestStore)
+	group, gCtx := errgroup.WithContext(context.Background())
+	group.Go(func() error {
+		return dispatcherSrv.Start(gCtx)
+	})
+	group.Go(func() error {
+		return apiSrv.Start(gCtx)
+	})
+	group.Go(func() error {
+		return workerSrv.Start(gCtx)
+	})
+	if err = group.Wait(); err != nil {
+		log.Error().Err(err).Msgf("Manager failed")
 	}
-
-	for _, server := range servers {
-		go server.Start()
-	}
-	select {}
 }

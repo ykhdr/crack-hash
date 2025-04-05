@@ -1,18 +1,21 @@
-package service
+package dispatcher
 
 import (
+	"context"
 	"encoding/xml"
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/ykhdr/crack-hash/common"
+	"github.com/rs/zerolog"
+	"github.com/ykhdr/crack-hash/common/bytes"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/manager/config"
+	"github.com/ykhdr/crack-hash/manager/internal/messages/request"
+	"github.com/ykhdr/crack-hash/manager/internal/store/requeststore"
 	"github.com/ykhdr/crack-hash/manager/pkg/api"
 	"github.com/ykhdr/crack-hash/manager/pkg/messages"
 	"github.com/ykhdr/crack-hash/worker/pkg/worker"
 	"io"
-	log "log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -24,67 +27,82 @@ var (
 
 var (
 	m               sync.RWMutex
-	requestC        chan *crackRequest
+	requestC        chan *request.CrackRequest
 	dispatchTimeout time.Duration
 )
 
 type Dispatcher struct {
+	l              zerolog.Logger
 	requestTimeout time.Duration
 	healthTimeout  time.Duration
 	consulClient   consul.Client
+	requestStore   requeststore.RequestStore
 }
 
-func NewDispatcher(cfg *config.DispatcherConfig, consulClient consul.Client) *Dispatcher {
+func NewDispatcher(
+	cfg *config.DispatcherConfig,
+	l zerolog.Logger,
+	consulClient consul.Client,
+	requestStore requeststore.RequestStore,
+) *Dispatcher {
 	m.Lock()
 	defer m.Unlock()
-	requestC = make(chan *crackRequest, cfg.RequestQueueSize)
+	requestC = make(chan *request.CrackRequest, cfg.RequestQueueSize)
 	dispatchTimeout = cfg.DispatchTimeout
 	return &Dispatcher{
 		requestTimeout: cfg.RequestTimeout,
 		healthTimeout:  cfg.HealthTimeout,
 		consulClient:   consulClient,
+		requestStore:   requestStore,
+		l: l.With().
+			Str("domain", "dispatcher").
+			Logger(),
 	}
 }
 
-func (s *Dispatcher) Start() {
-	log.Info("Dispatcher is running")
+func (s *Dispatcher) Start(ctx context.Context) error {
+	s.l.Info().Msg("Dispatcher is running")
 	for {
-		req := <-requestC
-		s.handleRequest(req)
+		select {
+		case req := <-requestC:
+			s.handleRequest(req)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 }
 
-func (s *Dispatcher) handleRequest(req *crackRequest) {
+func (s *Dispatcher) handleRequest(req *request.CrackRequest) {
 	if req == nil {
 		return
 	}
-	reqInfo := &RequestInfo{
+	reqInfo := &request.Info{
 		ID:        req.ID,
-		Status:    StatusNew,
+		Status:    request.StatusNew,
 		Request:   req.Request,
 		CreatedAt: req.CreatedAt,
 		FoundData: make([]string, 0),
 	}
 	services, err := s.consulClient.HealthServices(worker.ServiceName)
 	if err != nil {
-		log.Error("Error getting health services", "reqID", req.ID, "err", err)
-		reqInfo.Status = StatusError
+		s.l.Error().Err(err).Any("request-id", req.ID).Msg("Error get health services")
+		reqInfo.Status = request.StatusError
 		reqInfo.ErrorReason = "Error getting health workers: " + err.Error()
 	} else if len(services) == 0 {
-		log.Warn("No services found", "reqID", req.ID)
-		reqInfo.Status = StatusError
+		s.l.Warn().Any("request-id", req.ID).Msg("No services found")
+		reqInfo.Status = request.StatusError
 		reqInfo.ErrorReason = "No services found"
 	}
 	reqInfo.ServiceCount = len(services)
 	reqInfo.Services = services
-	GetRequestStore().Save(reqInfo)
-	if reqInfo.Status != StatusError {
+	s.requestStore.Save(reqInfo)
+	if reqInfo.Status != request.StatusError {
 		go s.dispatchTasksToWorkers(reqInfo)
-		go startCheckRequestStatus(reqInfo.ID, s.healthTimeout)
+		go s.startCheckRequestStatus(reqInfo.ID, s.healthTimeout)
 	}
 }
 
-func (s *Dispatcher) dispatchTasksToWorkers(reqInfo *RequestInfo) {
+func (s *Dispatcher) dispatchTasksToWorkers(reqInfo *request.Info) {
 	services := reqInfo.Services
 	partCount := len(services)
 	for partNumber := 0; partNumber < partCount; partNumber++ {
@@ -98,50 +116,48 @@ func (s *Dispatcher) dispatchTasksToWorkers(reqInfo *RequestInfo) {
 				Symbols: generateAlphabet(),
 			},
 		}
-		if err := sendRequestToWorker(reqXml, services[partNumber]); err != nil {
-			reqInfo.Status = StatusError
+		if err := s.sendRequestToWorker(reqXml, services[partNumber]); err != nil {
+			reqInfo.Status = request.StatusError
 			reqInfo.ErrorReason = "cant send request to worker: " + err.Error()
-			GetRequestStore().Save(reqInfo)
+			s.requestStore.Save(reqInfo)
 			return
 		}
 	}
-	GetRequestStore().UpdateStatus(reqInfo.ID, StatusInProgress)
+	s.requestStore.UpdateStatus(reqInfo.ID, request.StatusInProgress)
 	time.AfterFunc(s.requestTimeout, func() {
-		req, exists := GetRequestStore().Get(reqInfo.ID)
-		if exists && req.Status == StatusInProgress {
-			log.Warn("Request canceled by timeout", "reqID", reqInfo.ID)
-			info, _ := GetRequestStore().Get(reqInfo.ID)
-			info.Status = StatusError
-			info.ErrorReason = "Request canceled by timeout"
-			GetRequestStore().Save(info)
+		req, exists := s.requestStore.Get(reqInfo.ID)
+		if exists && req.Status == request.StatusInProgress {
+			s.l.Warn().Any("request-id", req.ID).Msg("Request canceled by timeout")
+			req.Status = request.StatusError
+			req.ErrorReason = "Request canceled by timeout"
+			s.requestStore.Save(req)
 		}
 	})
 }
 
-func sendRequestToWorker(reqXml messages.CrackHashManagerRequest, service *consul.Service) error {
+func (s *Dispatcher) sendRequestToWorker(reqXml messages.CrackHashManagerRequest, service *consul.Service) error {
 	bytesToSend, err := xml.Marshal(reqXml)
 	if err != nil {
-		log.Warn("Failed to marshal request", "err", err)
+		s.l.Warn().Err(err).Msg("Failed to marshal request")
 		return errors.New("failed to marshal request XML")
 	}
 	resp, err := http.Post(fmt.Sprintf("%s/%s", service.Url(), "internal/api/worker/hash/crack/task"), "application/xml",
-		io.NopCloser(common.NewBytesReader(bytesToSend)),
+		io.NopCloser(bytes.NewReader(bytesToSend)),
 	)
 	if err != nil {
-		log.Warn("Failed to send request to worker", "err", err)
+		s.l.Warn().Err(err).Msg("Failed to send request to worker")
 		return errors.New("failed to send request to worker")
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) { _ = Body.Close() }(resp.Body)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusAccepted {
-		log.Warn("Wrong status code", "status", resp.Status, "statusCode", resp.StatusCode)
+		s.l.Warn().Str("status", resp.Status).Int("code", resp.StatusCode).Msg("Wrong status code")
 		return errors.New("worker responded with status code: " + resp.Status)
 	}
-	log.Debug("Request sent to worker successfully")
+	s.l.Debug().Msg("Request sent to worker successfully")
 	return nil
 }
 
 func generateAlphabet() []string {
-	// 36 символов: a-z, 0-9
 	alpha := []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 	result := make([]string, len(alpha))
 	for i, r := range alpha {
@@ -150,32 +166,32 @@ func generateAlphabet() []string {
 	return result
 }
 
-func DispatchRequest(req *api.CrackRequest) (RequestId, error) {
+func DispatchRequest(apiReq *api.CrackRequest) (request.Id, error) {
 	m.RLock()
 	defer m.RUnlock()
 	requestId, _ := uuid.NewUUID()
-	reqId := RequestId(requestId.String())
-	request := &crackRequest{
+	reqId := request.Id(requestId.String())
+	req := &request.CrackRequest{
 		ID:        reqId,
-		Request:   req,
+		Request:   apiReq,
 		CreatedAt: time.Now(),
 	}
 	select {
-	case requestC <- request:
+	case requestC <- req:
 		return reqId, nil
 	case <-time.After(dispatchTimeout):
 		return "", ErrorQueueFull
 	}
 }
 
-func startCheckRequestStatus(reqId RequestId, timeout time.Duration) {
+func (s *Dispatcher) startCheckRequestStatus(reqId request.Id, timeout time.Duration) {
 	ticker := time.NewTicker(timeout)
 	defer ticker.Stop()
 	for {
 		<-ticker.C
-		reqInfo, exists := GetRequestStore().Get(reqId)
+		reqInfo, exists := s.requestStore.Get(reqId)
 		if !exists {
-			log.Warn("Check request error: Request does not exist", "reqId", reqId)
+			s.l.Warn().Any("request-id", reqId).Msg("Check request error: Request does not exist")
 			ticker.Stop()
 			return
 		}
@@ -183,20 +199,21 @@ func startCheckRequestStatus(reqId RequestId, timeout time.Duration) {
 		for _, srv := range services {
 			resp, err := http.Get(fmt.Sprintf("%s/api/health", srv.Url()))
 			if err != nil {
-				log.Warn("Check request error:Failed to send health request to worker", "err", err)
+				s.l.Warn().Err(err).Msg("Check request error:Failed to send health request to worker")
 				reqInfo.FailedServiceCount++
 				reqInfo.ErrorReason += fmt.Sprintf("Failed to send health request to worker %s\n", srv.Id())
-				checkOnReady(reqInfo)
-				GetRequestStore().Save(reqInfo)
+				reqInfo.UpdateStatus()
+				s.requestStore.Save(reqInfo)
 				return
 			}
 			if resp.StatusCode != http.StatusOK {
-				log.Warn("Check request error: Wrong worker health status code", "workerId", srv.Id(),
-					"status", resp.Status, "statusCode", resp.StatusCode)
+				s.l.Warn().
+					Str("status", resp.Status).Int("code", resp.StatusCode).Str("worker-id", srv.Id()).
+					Msg("Check request error:Failed to send health request to worker")
 				reqInfo.FailedServiceCount++
 				reqInfo.ErrorReason += fmt.Sprintf("Wrong worker %s health status code\n", srv.Id())
-				checkOnReady(reqInfo)
-				GetRequestStore().Save(reqInfo)
+				reqInfo.UpdateStatus()
+				s.requestStore.Save(reqInfo)
 				return
 			}
 		}

@@ -1,25 +1,25 @@
 package main
 
 import (
+	"context"
+	"github.com/rs/zerolog/log"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/worker/config"
-	_ "github.com/ykhdr/crack-hash/worker/internal/logger"
-	"github.com/ykhdr/crack-hash/worker/internal/service"
-	log "log/slog"
+	"github.com/ykhdr/crack-hash/worker/internal/server"
 	"os"
 )
 
 func main() {
 	cfg, err := config.InitializeConfig(os.Args[1:])
 	if err != nil {
-		log.Error("Failed to initialize config", "err", err)
-		return
+		log.Fatal().Err(err).Msgf("Failed to initialize config")
 	}
 	consulClient, err := consul.NewClient(cfg.ConsulConfig)
 	if err != nil {
-		log.Error("Failed to initialize consul client", "err", err)
-		return
+		log.Fatal().Err(err).Msgf("Failed to initialize consul client")
 	}
-	srv := service.NewServer(cfg, consulClient)
-	srv.Start()
+	srv := server.NewServer(cfg, log.Logger, consulClient)
+	if err = srv.Start(context.Background()); err != nil {
+		log.Fatal().Err(err).Msgf("Server failed")
+	}
 }

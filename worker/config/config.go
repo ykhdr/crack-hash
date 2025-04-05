@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ykhdr/crack-hash/common/config"
 	"github.com/ykhdr/crack-hash/common/consul"
+	"github.com/ykhdr/crack-hash/worker/internal/hashcrack/strategy"
 	"github.com/ykhdr/crack-hash/worker/internal/net"
 )
 
@@ -21,6 +22,7 @@ type WorkerConfig struct {
 	ServerConfig
 	ManagerUrl   string         `kdl:"manager-url"`
 	ConsulConfig *consul.Config `kdl:"consul"`
+	Strategy     string         `kdl:"strategy"`
 }
 
 func DefaultConfig() *WorkerConfig {
@@ -38,6 +40,10 @@ func DefaultConfig() *WorkerConfig {
 			Port:    8080,
 			Address: "0.0.0.0",
 		},
+		LogConfig: config.LogConfig{
+			LogLevel: "info",
+		},
+		Strategy: strategy.DefaultStrategyStr(),
 	}
 }
 
@@ -52,7 +58,6 @@ func InitializeConfig(args []string) (*WorkerConfig, error) {
 	} else {
 		return nil, fmt.Errorf("error find available address: %w", err)
 	}
-	//todo выделить отдельное поле для http
 	cfg.ConsulConfig.Health.Http = fmt.Sprintf("http://%s%s", cfg.Url(), cfg.ConsulConfig.Health.Http)
 	return cfg, nil
 }

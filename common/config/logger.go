@@ -6,7 +6,7 @@ type LogConfig struct {
 	LogLevel string `kdl:"log-level"`
 }
 
-func (c *LogConfig) GetLogLevel() string {
+func (c LogConfig) GetLogLevel() string {
 	return c.LogLevel
 }
 
