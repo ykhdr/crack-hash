@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/rs/zerolog/log"
+	"github.com/ykhdr/crack-hash/common/amqp"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/manager/config"
 	"github.com/ykhdr/crack-hash/manager/internal/dispatcher"
@@ -22,11 +23,17 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msgf("Error initializing consul client")
 	}
-	requestStore := requeststore.NewRequestStore()
-	dispatcherSrv := dispatcher.NewDispatcher(cfg.DispatcherConfig, log.Logger, consulClient, requestStore)
-	apiSrv := api.NewServer(cfg, log.Logger, dispatcherSrv, requestStore)
-	workerSrv := worker.NewServer(cfg, log.Logger, requestStore)
 	group, gCtx := errgroup.WithContext(context.Background())
+	requestStore := requeststore.NewRequestStore()
+	amqpConn, err := amqp.Dial(gCtx, cfg.AmqpConfig)
+	if err != nil {
+		log.Fatal().Err(err).Msgf("Error initializing amqp connection")
+	}
+
+	dispatcherSrv := dispatcher.NewDispatcher(cfg.DispatcherConfig, cfg.AmqpConfig, consulClient, requestStore, amqpConn)
+	apiSrv := api.NewServer(cfg, dispatcherSrv, requestStore)
+	workerSrv := worker.NewServer(cfg, requestStore)
+
 	group.Go(func() error {
 		return dispatcherSrv.Start(gCtx)
 	})

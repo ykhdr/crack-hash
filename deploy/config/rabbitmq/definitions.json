@@ -1,0 +1,76 @@
+{
+  "rabbit_version": "3.9.0",
+  "users": [
+    {
+      "name": "guest",
+      "password": "guest",
+      "tags": "administrator"
+    }
+  ],
+  "vhosts": [
+    { "name": "/" }
+  ],
+  "permissions": [
+    {
+      "user": "guest",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "exchanges": [
+    {
+      "name": "crack-request-exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    },
+    {
+      "name": "crack-response-exchange",
+      "vhost": "/",
+      "type": "direct",
+      "durable": true,
+      "auto_delete": false,
+      "internal": false,
+      "arguments": {}
+    }
+  ],
+  "queues": [
+    {
+      "name": "crack-request-queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    },
+    {
+      "name": "crack-response-queue",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "bindings": [
+    {
+      "source": "crack-request-exchange",
+      "vhost": "/",
+      "destination": "crack-request-queue",
+      "destination_type": "queue",
+      "routing_key": "crack-request",
+      "arguments": {}
+    },
+    {
+      "source": "crack-response-exchange",
+      "vhost": "/",
+      "destination": "crack-response-queue",
+      "destination_type": "queue",
+      "routing_key": "crack-response",
+      "arguments": {}
+    }
+  ]
+}

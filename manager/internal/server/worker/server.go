@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/ykhdr/crack-hash/common/http/middleware"
 	"github.com/ykhdr/crack-hash/manager/config"
 	"github.com/ykhdr/crack-hash/manager/internal/messages/request"
@@ -21,11 +22,11 @@ type Server struct {
 	requestStore requeststore.RequestStore
 }
 
-func NewServer(cfg *config.ManagerConfig, l zerolog.Logger, requestStore requeststore.RequestStore) *Server {
+func NewServer(cfg *config.ManagerConfig, requestStore requeststore.RequestStore) *Server {
 	return &Server{
 		addr:         cfg.WorkerServerAddr,
 		requestStore: requestStore,
-		l: l.With().
+		l: log.With().
 			Str("domain", "worker-server").
 			Str("type", "http").
 			Str("content-type", "application/xml").

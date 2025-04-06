@@ -10,3 +10,16 @@ consul {
         deregister-timeout "10s"
     }
 }
+amqp {
+    uri "amqp://guest:guest@rabbitmq:5672/"
+    username "guest"
+    password "guest"
+    reconnect-timeout "3s"
+    publisher {
+        exchange "crack-response-exchange"
+        routing-key "crack-response"
+    }
+    consumer {
+        queue "crack-request-queue"
+    }
+}

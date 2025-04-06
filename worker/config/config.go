@@ -2,10 +2,12 @@ package config
 
 import (
 	"fmt"
+	"github.com/ykhdr/crack-hash/common/amqp"
 	"github.com/ykhdr/crack-hash/common/config"
 	"github.com/ykhdr/crack-hash/common/consul"
 	"github.com/ykhdr/crack-hash/worker/internal/hashcrack/strategy"
 	"github.com/ykhdr/crack-hash/worker/internal/net"
+	"time"
 )
 
 type ServerConfig struct {
@@ -23,6 +25,7 @@ type WorkerConfig struct {
 	ManagerUrl   string         `kdl:"manager-url"`
 	ConsulConfig *consul.Config `kdl:"consul"`
 	Strategy     string         `kdl:"strategy"`
+	AmqpConfig   *amqp.Config   `kdl:"amqp"`
 }
 
 func DefaultConfig() *WorkerConfig {
@@ -44,6 +47,19 @@ func DefaultConfig() *WorkerConfig {
 			LogLevel: "info",
 		},
 		Strategy: strategy.DefaultStrategyStr(),
+		AmqpConfig: &amqp.Config{
+			URI:              "amqp://guest:guest@localhost:5672/",
+			Username:         "guest",
+			Password:         "guest",
+			ReconnectTimeout: 3 * time.Second,
+			ConsumerConfig: &amqp.ConsumerConfig{
+				Queue: "crack-request-queue",
+			},
+			PublisherConfig: &amqp.PublisherConfig{
+				Exchange:   "crack-response-exchange",
+				RoutingKey: "crack-response",
+			},
+		},
 	}
 }
 

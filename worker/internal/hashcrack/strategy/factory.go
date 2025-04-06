@@ -1,6 +1,6 @@
 package strategy
 
-import log "github.com/rs/zerolog/log"
+import "github.com/rs/zerolog/log"
 
 type Type int
 

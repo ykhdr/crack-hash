@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/ykhdr/crack-hash/common/http/middleware"
 	"github.com/ykhdr/crack-hash/manager/config"
 	"github.com/ykhdr/crack-hash/manager/internal/dispatcher"
@@ -24,7 +25,6 @@ type Server struct {
 
 func NewServer(
 	cfg *config.ManagerConfig,
-	l zerolog.Logger,
 	dispatcher *dispatcher.Dispatcher,
 	requestStore requeststore.RequestStore,
 ) *Server {
@@ -32,7 +32,7 @@ func NewServer(
 		addr:         cfg.ApiServerAddr,
 		dispatcher:   dispatcher,
 		requestStore: requestStore,
-		l: l.With().
+		l: log.With().
 			Str("domain", "api-server").
 			Str("type", "http").
 			Str("content-type", "application/json").
@@ -71,7 +71,7 @@ func (s *Server) handleHashCrack(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	reqId, err := dispatcher.DispatchRequest(&req)
+	reqId, err := s.dispatcher.DispatchRequest(&req)
 	if err != nil {
 		s.l.Warn().Err(err).Any("request", req).Msg("Failed to dispatch request")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

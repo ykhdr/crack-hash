@@ -5,6 +5,7 @@ dispatcher {
     request-queue-size 100
     dispatch-timeout "10s"
     request-timeout "2m"
+    reconnect-timeout "1s"
     health-timeout "10s"
 }
 consul {
@@ -13,5 +14,18 @@ consul {
         interval "30s"
         timeout "5s"
         http "/api/health"
+    }
+}
+amqp {
+    uri "amqp://guest:guest@rabbitmq:5672/"
+    username "guest"
+    password "guest"
+    reconnect-timeout "3s"
+    publisher {
+        exchange "crack-request-exchange"
+        routing-key "crack-request"
+    }
+    consumer {
+        queue "crack-response-queue"
     }
 }

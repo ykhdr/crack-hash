@@ -14,6 +14,24 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
+  rabbitmq:
+    image: rabbitmq:4.0.6-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_LOAD_DEFINITIONS: "true"
+    healthcheck:
+      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity && rabbitmq-diagnostics -q cluster_status && rabbitmq-diagnostics -q check_local_alarms" ]
+    networks:
+      - crack_net
+    volumes:
+      - ./deploy/config/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./deploy/config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - rabbitmq_data:/var/lib/rabbitmq
   manager:
     build:
       dockerfile: ./manager/Dockerfile
@@ -23,6 +41,8 @@ services:
     networks:
       - crack_net
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       consul:
         condition: service_healthy
   worker:
@@ -33,8 +53,12 @@ services:
     networks:
       - crack_net
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       consul:
         condition: service_healthy
 networks:
   crack_net:
     driver: bridge
+volumes:
+  rabbitmq_data:
