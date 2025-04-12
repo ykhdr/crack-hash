@@ -3,6 +3,7 @@ package hashcrack
 import (
 	"context"
 	"encoding/xml"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog"
@@ -18,19 +19,24 @@ import (
 )
 
 type Service struct {
-	l             zerolog.Logger
-	cfg           *config.WorkerConfig
-	consumerCfg   *consumer.Config
-	publisherCfg  *publisher.Config
-	consulClient  consul.Client
-	amqpConn      *amqpconn.Connection
+	l            zerolog.Logger
+	cfg          *config.WorkerConfig
+	consumerCfg  *consumer.Config
+	publisherCfg *publisher.Config
+	consulClient consul.Client
+
 	crackStrategy strategy.Strategy
 
+	amqpConn      *amqpconn.Connection
 	amqpConsumer  consumer.Consumer
 	amqpPublisher publisher.Publisher[messages.CrackHashWorkerResponse]
 }
 
-func NewService(cfg *config.WorkerConfig, consulClient consul.Client, amqpConn *amqpconn.Connection) *Service {
+func NewService(
+	cfg *config.WorkerConfig,
+	consulClient consul.Client,
+	amqpConn *amqpconn.Connection,
+) *Service {
 	crackStrategy := strategy.NewStrategy(strategy.ParseStrategyName(cfg.Strategy))
 	return &Service{
 		cfg:           cfg,
@@ -92,6 +98,7 @@ func (s *Service) crackTask(req *messages.CrackHashManagerRequest) *messages.Cra
 		Msg("cracking task")
 	result := s.crackStrategy.CrackMd5(req)
 	return &messages.CrackHashWorkerResponse{
+		Id:        uuid.NewString(),
 		RequestId: req.RequestId,
 		Found:     result.Found(),
 	}

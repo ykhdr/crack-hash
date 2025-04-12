@@ -25,16 +25,17 @@ type CrackRequest struct {
 }
 
 type Info struct {
-	ID                 Id
-	Status             Status
-	Request            *api.CrackRequest
-	FoundData          []string
-	CreatedAt          time.Time
-	ServiceCount       int
-	ReadyServiceCount  int
-	FailedServiceCount int
-	ErrorReason        string
-	Services           []*consul.Service
+	ID                 Id                `bson:"_id"`
+	Status             Status            `bson:"status"`
+	Request            *api.CrackRequest `bson:"request"`
+	FoundData          []string          `bson:"found_data"`
+	CreatedAt          time.Time         `bson:"created_at"`
+	ServiceCount       int               `bson:"service_count"`
+	ReadyServiceCount  int               `bson:"ready_service_count"`
+	FailedServiceCount int               `bson:"failed_service_count"`
+	ErrorReason        string            `bson:"error_reason"`
+	Services           []*consul.Service `bson:"-"`
+	CompletedParts     []int             `bson:"completed_parts"`
 }
 
 func (r *Info) Copy() *Info {
@@ -49,6 +50,7 @@ func (r *Info) Copy() *Info {
 		ErrorReason:        r.ErrorReason,
 		Services:           r.Services,
 		FailedServiceCount: r.FailedServiceCount,
+		CompletedParts:     r.CompletedParts,
 	}
 }
 

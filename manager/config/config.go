@@ -4,6 +4,7 @@ import (
 	"github.com/ykhdr/crack-hash/common/amqp"
 	"github.com/ykhdr/crack-hash/common/config"
 	"github.com/ykhdr/crack-hash/common/consul"
+	"github.com/ykhdr/crack-hash/common/store/mongo"
 	"time"
 )
 
@@ -22,6 +23,7 @@ type ManagerConfig struct {
 	DispatcherConfig *DispatcherConfig `kdl:"dispatcher"`
 	AmqpConfig       *amqp.Config      `kdl:"amqp"`
 	ConsulConfig     *consul.Config    `kdl:"consul"`
+	MongoDBConfig    *mongo.Config     `kdl:"mongo"`
 }
 
 func DefaultConfig() *ManagerConfig {
@@ -58,6 +60,14 @@ func DefaultConfig() *ManagerConfig {
 				Exchange:   "crack-request-exchange",
 				RoutingKey: "crack-request",
 			},
+		},
+		MongoDBConfig: &mongo.Config{
+			ClientConfig: mongo.ClientConfig{
+				URI:      "mongodb://admin:secret@mongo-primary:27017,mongo-secondary1:27017,mongo-secondary2:27017/?replicaSet=rs0&authSource=admin",
+				Username: "admin",
+				Password: "secret",
+			},
+			Database: "requests",
 		},
 	}
 }

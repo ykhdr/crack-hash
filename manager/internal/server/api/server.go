@@ -71,7 +71,7 @@ func (s *Server) handleHashCrack(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	reqId, err := s.dispatcher.DispatchRequest(&req)
+	reqId, err := s.dispatcher.DispatchRequest(context.WithoutCancel(r.Context()), &req)
 	if err != nil {
 		s.l.Warn().Err(err).Any("request", req).Msg("Failed to dispatch request")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -92,8 +92,8 @@ func (s *Server) handleHashStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := request.Id(requestId)
-	info, exists := s.requestStore.Get(id)
-	if !exists {
+	info, err := s.requestStore.Get(r.Context(), id)
+	if err != nil {
 		http.Error(w, "Request not found", http.StatusNotFound)
 		return
 	}
@@ -103,10 +103,9 @@ func (s *Server) handleHashStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	if info.Status == request.StatusReady {
 		resp["data"] = info.FoundData
-		s.requestStore.Delete(id)
+		s.requestStore.DeleteFromCache(id)
 	}
-	err := json.NewEncoder(w).Encode(resp)
-	if err != nil {
+	if err = json.NewEncoder(w).Encode(resp); err != nil {
 		s.l.Warn().Err(err).Msg("Failed to encode response")
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}

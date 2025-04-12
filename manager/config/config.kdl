@@ -29,3 +29,9 @@ amqp {
         queue "crack-response-queue"
     }
 }
+mongo {
+    uri "mongodb://admin:secret@mongo-primary:27017,mongo-secondary1:27017,mongo-secondary2:27017/?replicaSet=rs0&authSource=admin"
+    username "admin"
+    password "secret"
+    database "requests"
+}
