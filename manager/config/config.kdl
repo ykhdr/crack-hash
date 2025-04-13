@@ -1,0 +1,37 @@
+log-level "debug"
+api-server-addr "0.0.0.0:8080"
+worker-server-addr "0.0.0.0:9090"
+dispatcher {
+    request-queue-size 100
+    dispatch-timeout "10s"
+    request-timeout "2m"
+    reconnect-timeout "1s"
+    health-timeout "10s"
+}
+consul {
+    address "consul:8500"
+    health {
+        interval "30s"
+        timeout "5s"
+        http "/api/health"
+    }
+}
+amqp {
+    uri "amqp://guest:guest@rabbitmq:5672/"
+    username "guest"
+    password "guest"
+    reconnect-timeout "3s"
+    publisher {
+        exchange "exchange.crack.request"
+        routing-key "crack.request"
+    }
+    consumer {
+        queue "queue.crack.response"
+    }
+}
+mongo {
+    uri "mongodb://admin:secret@mongo-primary:27017,mongo-secondary1:27017,mongo-secondary2:27017/?replicaSet=rs0&authSource=admin"
+    username "admin"
+    password "secret"
+    database "requests"
+}

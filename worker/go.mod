@@ -1,10 +1,9 @@
 module github.com/ykhdr/crack-hash/worker
 
-go 1.23.0
+go 1.24.1
 
 require (
 	github.com/gorilla/mux v1.8.1
-	github.com/ykhdr/crack-hash/common v0.2.3
 )
 
 require (
@@ -23,6 +22,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/sblinch/kdl-go v0.0.0-20240410000746-21754ba9ac55 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	golang.org/x/sys v0.29.0 // indirect

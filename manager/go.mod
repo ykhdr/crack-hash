@@ -1,11 +1,10 @@
 module github.com/ykhdr/crack-hash/manager
 
-go 1.23.0
+go 1.24.1
 
 require (
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
-	github.com/ykhdr/crack-hash/common v0.2.3
 )
 
 require (
@@ -26,5 +25,6 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/sblinch/kdl-go v0.0.0-20240410000746-21754ba9ac55 // indirect
 	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
+	golang.org/x/sync v0.13.0 // indirect
 	golang.org/x/sys v0.29.0 // indirect
 )

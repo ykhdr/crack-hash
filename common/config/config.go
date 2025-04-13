@@ -5,7 +5,7 @@ import (
 	"github.com/ykhdr/crack-hash/common/internal/kdl"
 )
 
-const defaultConfigPath = "./config.kdl"
+const defaultConfigPath = "./config/config.kdl"
 
 func InitializeConfig[T any](args []string, defaultCfg T) (*T, error) {
 	var configPath string
@@ -19,5 +19,6 @@ func InitializeConfig[T any](args []string, defaultCfg T) (*T, error) {
 	if err != nil {
 		return nilT, fmt.Errorf("unmarshal kdl: %w", err)
 	}
+	setupLogger(config)
 	return &config, nil
 }

@@ -6,7 +6,6 @@ services:
     command: agent -server -ui -bind=0.0.0.0 -client=0.0.0.0 -bootstrap-expect=1
     ports:
       - "8500:8500"
-      - "8600:8600/udp" # dns
     networks:
       - crack_net
     healthcheck:
@@ -15,33 +14,176 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
+  rabbitmq:
+    image: rabbitmq:4.0.6-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_LOAD_DEFINITIONS: "true"
+    healthcheck:
+      test: [ "CMD-SHELL", "rabbitmq-diagnostics -q check_port_connectivity && rabbitmq-diagnostics -q cluster_status && rabbitmq-diagnostics -q check_local_alarms" ]
+    networks:
+      - crack_net
+    volumes:
+      - ./deploy/config/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./deploy/config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - rabbitmq_data:/var/lib/rabbitmq
+  mongo-pki-setup:
+    image: mongo:8.0.6
+    restart: no
+    entrypoint: [ "bash", "/scripts/pki-init.sh" ]
+    volumes:
+      - mongo_rs_pki:/etc/mongodb/pki
+      - ./deploy/config/mongo/pki-init.sh:/scripts/pki-init.sh
+    networks:
+      - crack_net
+  mongo-primary:
+    image: mongo:8.0.6
+    container_name: mongo-primary
+    command: ["--config", "/etc/mongodb/mongod.conf"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_primary_data:/data/db
+      - mongo_rs_pki:/etc/mongodb/pki:ro
+      - ./deploy/config/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=secret
+    healthcheck:
+      test: echo 'db.runCommand({serverStatus:1}).ok' | mongosh admin -u $$MONGO_INITDB_ROOT_USERNAME -p $$MONGO_INITDB_ROOT_PASSWORD --quiet | grep 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      mongo-pki-setup:
+        condition: service_completed_successfully
+    networks:
+      - crack_net
+  mongo-secondary1:
+    image: mongo:8.0.6
+    container_name: mongo-secondary1
+    command: ["--config", "/etc/mongodb/mongod.conf"]
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo_secondary1_data:/data/db
+      - mongo_rs_pki:/etc/mongodb/pki:ro
+      - ./deploy/config/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=secret
+    healthcheck:
+      test: echo 'db.runCommand({serverStatus:1}).ok' | mongosh admin -u $$MONGO_INITDB_ROOT_USERNAME -p $$MONGO_INITDB_ROOT_PASSWORD --quiet | grep 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      mongo-pki-setup:
+        condition: service_completed_successfully
+    networks:
+      - crack_net
+  mongo-secondary2:
+    image: mongo:8.0.6
+    container_name: mongo-secondary2
+    command: ["--config", "/etc/mongodb/mongod.conf"]
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo_secondary2_data:/data/db
+      - mongo_rs_pki:/etc/mongodb/pki:ro
+      - ./deploy/config/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=secret
+    healthcheck:
+      test: echo 'db.runCommand({serverStatus:1}).ok' | mongosh admin -u $$MONGO_INITDB_ROOT_USERNAME -p $$MONGO_INITDB_ROOT_PASSWORD --quiet | grep 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      mongo-pki-setup:
+        condition: service_completed_successfully
+    networks:
+      - crack_net
+  mongo-rs-init:
+    image: mongo:8.0.6
+    container_name: mongo-rs-init
+    environment:
+      - MONGO_USERNAME=admin
+      - MONGO_PASSWORD=secret
+    depends_on:
+      mongo-primary:
+        condition: service_healthy
+      mongo-secondary1:
+        condition: service_healthy
+      mongo-secondary2:
+        condition: service_healthy
+    volumes:
+      - ./deploy/config/mongo/mongo-rs-init.sh:/scripts/mongo-rs-init.sh:ro
+    entrypoint: ["bash", "/scripts/mongo-rs-init.sh"]
+    restart: "no"
+    networks:
+      - crack_net
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    container_name: mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: "mongodb://admin:secret@mongo-primary:27017,mongo-secondary1:27017,mongo-secondary2:27017/?replicaSet=rs0&authSource=admin"
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: secret
+    depends_on:
+      mongo-primary:
+        condition: service_healthy
+      mongo-secondary1:
+        condition: service_healthy
+      mongo-secondary2:
+        condition: service_healthy
+    networks:
+      - crack_net
   manager:
     build:
-      context: ./manager
-      dockerfile: Dockerfile
-      ssh:
-        - default
+      dockerfile: ./manager/Dockerfile
     container_name: manager
     ports:
       - "8080:8080"
     networks:
       - crack_net
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       consul:
         condition: service_healthy
+      mongo-rs-init:
+        condition: service_completed_successfully
   worker:
     build:
-      context: ./worker
-      dockerfile: Dockerfile
-      ssh:
-        - default
+      dockerfile: ./worker/Dockerfile
     deploy:
       replicas: 3
     networks:
       - crack_net
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       consul:
         condition: service_healthy
+      mongo-rs-init:
+        condition: service_completed_successfully
 networks:
   crack_net:
     driver: bridge
+volumes:
+  rabbitmq_data:
+
+  mongo_rs_pki:
+  mongo_primary_data:
+  mongo_secondary1_data:
+  mongo_secondary2_data:

@@ -1,24 +1,35 @@
 package config
 
 import (
-	"errors"
 	"fmt"
+	"github.com/ykhdr/crack-hash/common/amqp"
 	"github.com/ykhdr/crack-hash/common/config"
 	"github.com/ykhdr/crack-hash/common/consul"
-	"net"
+	"github.com/ykhdr/crack-hash/worker/internal/hashcrack/strategy"
+	"github.com/ykhdr/crack-hash/worker/internal/net"
+	"time"
 )
 
+type ServerConfig struct {
+	Port    int    `kdl:"server-port"`
+	Address string `kdl:"server-address"`
+}
+
+func (w *ServerConfig) Url() string {
+	return fmt.Sprintf("%s:%d", w.Address, w.Port)
+}
+
 type WorkerConfig struct {
-	ServerPort   int            `kdl:"server-port"`
+	config.LogConfig
+	ServerConfig
 	ManagerUrl   string         `kdl:"manager-url"`
 	ConsulConfig *consul.Config `kdl:"consul"`
-	Address      string
-	Url          string
+	Strategy     string         `kdl:"strategy"`
+	AmqpConfig   *amqp.Config   `kdl:"amqp"`
 }
 
 func DefaultConfig() *WorkerConfig {
 	return &WorkerConfig{
-		ServerPort: 8080,
 		ManagerUrl: "manager:8080",
 		ConsulConfig: &consul.Config{
 			Address: "consul:8500",
@@ -28,43 +39,41 @@ func DefaultConfig() *WorkerConfig {
 				Http:     "/api/health",
 			},
 		},
+		ServerConfig: ServerConfig{
+			Port:    8080,
+			Address: "0.0.0.0",
+		},
+		LogConfig: config.LogConfig{
+			LogLevel: "info",
+		},
+		Strategy: strategy.DefaultStrategyStr(),
+		AmqpConfig: &amqp.Config{
+			URI:              "amqp://guest:guest@localhost:5672/",
+			Username:         "guest",
+			Password:         "guest",
+			ReconnectTimeout: 3 * time.Second,
+			ConsumerConfig: &amqp.ConsumerConfig{
+				Queue: "queue.crack.request",
+			},
+			PublisherConfig: &amqp.PublisherConfig{
+				Exchange:   "exchange.crack.response",
+				RoutingKey: "crack.response",
+			},
+		},
 	}
 }
 
-func InitializeConfig(args []string) (res *WorkerConfig, _ error) {
-	cfg := *DefaultConfig()
-	addr, err := findAvailableIPv4Addr()
+func InitializeConfig(args []string) (*WorkerConfig, error) {
+	cfg, err := config.InitializeConfig[WorkerConfig](args, *DefaultConfig())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error initialize config: %w", err)
 	}
-	defer func() {
-		res.Address = addr
-		res.Url = fmt.Sprintf("%s:%d", addr, res.ServerPort)
-		res.ConsulConfig.Health.Http = "http://" + res.Url + res.ConsulConfig.Health.Http
-	}()
-	return config.InitializeConfig[WorkerConfig](args, cfg)
-}
-
-func findAvailableIPv4Addr() (string, error) {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return "", err
+	addr, err := net.FindAvailableIPv4Addr()
+	if err == nil {
+		cfg.ServerConfig.Address = string(addr)
+	} else {
+		return nil, fmt.Errorf("error find available address: %w", err)
 	}
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-			continue
-		}
-		addrs, err := iface.Addrs()
-		if err != nil {
-			return "", err
-		}
-		for _, addr := range addrs {
-			if ipNet, ok := addr.(*net.IPNet); ok {
-				if ip4 := ipNet.IP.To4(); ip4 != nil {
-					return ip4.String(), nil
-				}
-			}
-		}
-	}
-	return "", errors.New("no valid network interface found")
+	cfg.ConsulConfig.Health.Http = fmt.Sprintf("http://%s%s", cfg.Url(), cfg.ConsulConfig.Health.Http)
+	return cfg, nil
 }
