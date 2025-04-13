@@ -22,11 +22,11 @@ amqp {
     password "guest"
     reconnect-timeout "3s"
     publisher {
-        exchange "crack-request-exchange"
-        routing-key "crack-request"
+        exchange "exchange.crack.request"
+        routing-key "crack.request"
     }
     consumer {
-        queue "crack-response-queue"
+        queue "queue.crack.response"
     }
 }
 mongo {

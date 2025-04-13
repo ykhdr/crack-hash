@@ -53,11 +53,11 @@ func DefaultConfig() *WorkerConfig {
 			Password:         "guest",
 			ReconnectTimeout: 3 * time.Second,
 			ConsumerConfig: &amqp.ConsumerConfig{
-				Queue: "crack-request-queue",
+				Queue: "queue.crack.request",
 			},
 			PublisherConfig: &amqp.PublisherConfig{
-				Exchange:   "crack-response-exchange",
-				RoutingKey: "crack-response",
+				Exchange:   "exchange.crack.response",
+				RoutingKey: "crack.response",
 			},
 		},
 	}

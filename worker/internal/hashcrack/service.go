@@ -81,10 +81,10 @@ func (s *Service) Start(ctx context.Context) error {
 }
 
 func (s *Service) receive(ctx context.Context, data *messages.CrackHashManagerRequest, d amqp.Delivery) error {
+	resp := s.crackTask(data)
 	if err := d.Ack(false); err != nil {
 		return errors.Wrap(err, "error ack delivery")
 	}
-	resp := s.crackTask(data)
 	return s.amqpPublisher.SendMessage(ctx, resp, publisher.Persistent, false, false)
 }
 

@@ -134,15 +134,11 @@ func (s *requestStore) Update(ctx context.Context, info *request.Info) error {
 	filter := bson.M{"_id": info.ID}
 	update := bson.M{
 		"$set": bson.M{
-			"status":               info.Status,
-			"request":              info.Request,
-			"found_data":           info.FoundData,
-			"created_at":           info.CreatedAt,
-			"service_count":        info.ServiceCount,
-			"ready_service_count":  info.ReadyServiceCount,
-			"failed_service_count": info.FailedServiceCount,
-			"error_reason":         info.ErrorReason,
-			"completed_parts":      info.CompletedParts,
+			"status":       info.Status,
+			"request":      info.Request,
+			"found_data":   info.FoundData,
+			"created_at":   info.CreatedAt,
+			"error_reason": info.ErrorReason,
 		},
 	}
 	result, err := s.database.Collection("requests").UpdateOne(ctx, filter, update)

@@ -16,10 +16,10 @@ amqp {
     password "guest"
     reconnect-timeout "3s"
     publisher {
-        exchange "crack-response-exchange"
-        routing-key "crack-response"
+        exchange "exchange.crack.response"
+        routing-key "crack.response"
     }
     consumer {
-        queue "crack-request-queue"
+        queue "queue.crack.request"
     }
 }

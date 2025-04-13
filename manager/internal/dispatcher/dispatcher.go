@@ -22,14 +22,12 @@ import (
 	"github.com/ykhdr/crack-hash/manager/pkg/messages"
 	"github.com/ykhdr/crack-hash/worker/pkg/worker"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"net/http"
 	"slices"
 	"sync"
 	"time"
 )
 
 var (
-	QueueFullErr              = errors.New("request queue is full")
 	RequestNotFoundErr        = errors.New("request not found")
 	RequestAlreadyCanceledErr = errors.New("request is already canceled")
 	NilRequestErr             = fmt.Errorf("request is nil")
@@ -181,29 +179,27 @@ func (s *Dispatcher) dispatchRequest(ctx context.Context, req *request.Info) err
 		req.ErrorReason = "No services found"
 	}
 	req.ServiceCount = len(services)
-	req.Services = services
 	if err := s.requestStore.Save(ctx, req); err != nil {
 		s.l.Error().Err(err).Msg("Error saving request")
 		return SaveRequestErr
 	}
 	if req.Status != request.StatusError {
-		s.sendRequests(ctx, req)
+		s.sendRequests(ctx, req, services)
 	}
 	return nil
 }
 
-func (s *Dispatcher) sendRequests(ctx context.Context, reqInfo *request.Info) {
-	go s.dispatchTasksToWorkers(ctx, s.amqpPublisher, reqInfo)
-	go s.startCheckRequestStatus(ctx, reqInfo.ID, s.healthTimeout)
+func (s *Dispatcher) sendRequests(ctx context.Context, reqInfo *request.Info, services []*consul.Service) {
+	go s.dispatchTasksToWorkers(ctx, s.amqpPublisher, reqInfo, services)
 }
 
 func (s *Dispatcher) dispatchTasksToWorkers(
 	ctx context.Context,
 	pub publisher.Publisher[messages.CrackHashManagerRequest],
-	reqInfo *request.Info) {
+	reqInfo *request.Info,
+	services []*consul.Service) {
 	s.requestLock.Lock()
 	defer s.requestLock.Unlock()
-	services := reqInfo.Services
 	partCount := len(services)
 	for partNumber := 0; partNumber < partCount; partNumber++ {
 		reqXml := &messages.CrackHashManagerRequest{
@@ -230,26 +226,6 @@ func (s *Dispatcher) dispatchTasksToWorkers(
 	if err != nil {
 		s.l.Warn().Err(err).Msg("Can't update status to in-progress")
 	}
-	//timer := time.AfterFunc(s.requestTimeout, func() {
-	//	s.requestLock.Lock()
-	//	defer s.requestLock.Unlock()
-	//	req, err := s.requestStore.Get(ctx, reqInfo.ID)
-	//	if err != nil {
-	//		s.l.Error().Err(err).Msg("Can't get request")
-	//		reqInfo.Status = request.StatusError
-	//		reqInfo.ErrorReason = "Can't get request"
-	//		if err := s.requestStore.UpdateStatus(ctx, reqInfo.ID, reqInfo.Status, reqInfo.ErrorReason); err != nil {
-	//			s.l.Error().Err(err).Msg("Error updating request status")
-	//		}
-	//	} else if req.Status == request.StatusInProgress {
-	//		s.l.Warn().Any("request-id", req.ID).Msg("Request canceled by timeout")
-	//		req.Status = request.StatusError
-	//		req.ErrorReason = "Request canceled by timeout"
-	//		if err := s.requestStore.UpdateStatus(ctx, reqInfo.ID, reqInfo.Status, reqInfo.ErrorReason); err != nil {
-	//			s.l.Error().Err(err).Msg("Error updating request status")
-	//		}
-	//	}
-	//})
 }
 
 func (s *Dispatcher) handle(ctx context.Context, data *messages.CrackHashWorkerResponse, delivery amqp091.Delivery) error {
@@ -280,7 +256,7 @@ func (s *Dispatcher) handleResponse(ctx context.Context, resp *messages.CrackHas
 		s.l.Warn().Str("request-id", resp.RequestId).Msg("Failed to find request store")
 		return RequestNotFoundErr
 	}
-	if reqInfo.Status != request.StatusInProgress || reqInfo.ReadyServiceCount+reqInfo.FailedServiceCount == reqInfo.ServiceCount {
+	if reqInfo.Status != request.StatusInProgress || reqInfo.ReadyServiceCount >= reqInfo.ServiceCount {
 		s.l.Warn().Str("request-id", resp.RequestId).Msg("Request is already canceled")
 		return RequestAlreadyCanceledErr
 	}
@@ -316,68 +292,3 @@ func (s *Dispatcher) DispatchRequest(ctx context.Context, apiReq *api.CrackReque
 	}
 	return reqId, nil
 }
-
-func (s *Dispatcher) startCheckRequestStatus(ctx context.Context, reqId request.Id, timeout time.Duration) {
-	ticker := time.NewTicker(timeout)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			s.l.Debug().Msg("check request status cancelled")
-			return
-		case <-ticker.C:
-			//todo добавить отдельный канал на то что запрос завершился
-			reqInfo, err := s.requestStore.Get(ctx, reqId)
-			if err != nil {
-				s.l.Warn().Any("request-id", reqId).Msg("Check request error: Request does not exist")
-				return
-			}
-			if reqInfo.Status != request.StatusInProgress && reqInfo.Status != request.StatusNew {
-				return
-			}
-			services := reqInfo.Services
-			for _, srv := range services {
-				resp, err := http.Get(fmt.Sprintf("%s/api/health", srv.Url()))
-				//todo здесь нужно перенаправлять запрос другому воркеру
-				if err != nil {
-					s.l.Warn().Err(err).Msg("Check request error: Failed to send health request to worker")
-					reqInfo.FailedServiceCount++
-					reqInfo.ErrorReason += fmt.Sprintf("Failed to send health request to worker %s\n", srv.Id())
-					reqInfo.UpdateStatus()
-					if err := s.requestStore.Update(ctx, reqInfo); err != nil {
-						s.l.Error().Err(err).Msg("Error updating request status")
-					}
-					return
-				}
-				if resp.StatusCode != http.StatusOK {
-					s.l.Warn().
-						Str("status", resp.Status).Int("code", resp.StatusCode).Str("worker-id", srv.Id()).
-						Msg("Check request error:Failed to send health request to worker")
-					reqInfo.FailedServiceCount++
-					reqInfo.ErrorReason += fmt.Sprintf("Wrong worker %s health status code\n", srv.Id())
-					reqInfo.UpdateStatus()
-					if err := s.requestStore.Update(ctx, reqInfo); err != nil {
-						s.l.Error().Err(err).Msg("Error updating request status")
-					}
-					return
-				}
-			}
-		}
-
-	}
-}
-
-//func (s *Dispatcher) monitorMongo(ctx context.Context) {
-//	for {
-//		select {
-//		case <-ctx.Done():
-//			return
-//		case <-time.After(time.Second):
-//			if err := s.mongoClient.Ping(ctx, nil); err != nil {
-//				s.l.Warn().Err(err).Msg("Failed to ping mongo")
-//				//todo блокировку тут делать?
-//				//s.mongoAvailable
-//			}
-//		}
-//	}
-//}
