@@ -232,9 +232,12 @@ func (s *Dispatcher) handle(ctx context.Context, data *messages.CrackHashWorkerR
 	if data.Id == "" {
 		data.Id = uuid.NewString()
 	}
-	if err := s.responseStore.Save(ctx, data); err != nil {
-		s.l.Warn().Err(err).Msg("Error saving response")
-		return errors.Wrap(err, "can't save response")
+	for {
+		if err := s.responseStore.Save(ctx, data); err != nil {
+			s.l.Warn().Err(err).Msg("Error saving response")
+			continue
+		}
+		break
 	}
 	if err := delivery.Ack(false); err != nil {
 		s.l.Warn().Err(err).Msg("Error acknowledging message")
