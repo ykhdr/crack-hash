@@ -29,8 +29,8 @@ services:
     networks:
       - crack_net
     volumes:
-      - ./deploy/config/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
-      - ./deploy/config/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./deploy/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+      - ./deploy/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - rabbitmq_data:/var/lib/rabbitmq
   mongo-pki-setup:
     image: mongo:8.0.6
@@ -38,7 +38,7 @@ services:
     entrypoint: [ "bash", "/scripts/pki-init.sh" ]
     volumes:
       - mongo_rs_pki:/etc/mongodb/pki
-      - ./deploy/config/mongo/pki-init.sh:/scripts/pki-init.sh
+      - ./deploy/mongo/pki-init.sh:/scripts/pki-init.sh
     networks:
       - crack_net
   mongo-primary:
@@ -50,7 +50,7 @@ services:
     volumes:
       - mongo_primary_data:/data/db
       - mongo_rs_pki:/etc/mongodb/pki:ro
-      - ./deploy/config/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
+      - ./deploy/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=secret
@@ -73,7 +73,7 @@ services:
     volumes:
       - mongo_secondary1_data:/data/db
       - mongo_rs_pki:/etc/mongodb/pki:ro
-      - ./deploy/config/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
+      - ./deploy/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=secret
@@ -96,7 +96,7 @@ services:
     volumes:
       - mongo_secondary2_data:/data/db
       - mongo_rs_pki:/etc/mongodb/pki:ro
-      - ./deploy/config/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
+      - ./deploy/mongo/mongod.conf:/etc/mongodb/mongod.conf:ro
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=secret
@@ -124,7 +124,7 @@ services:
       mongo-secondary2:
         condition: service_healthy
     volumes:
-      - ./deploy/config/mongo/mongo-rs-init.sh:/scripts/mongo-rs-init.sh:ro
+      - ./deploy/mongo/mongo-rs-init.sh:/scripts/mongo-rs-init.sh:ro
     entrypoint: ["bash", "/scripts/mongo-rs-init.sh"]
     restart: "no"
     networks:
