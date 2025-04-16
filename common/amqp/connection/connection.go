@@ -101,6 +101,7 @@ func (c *Connection) runNotifyWatcher(ctx context.Context) {
 			return
 		}
 		c.l.Warn().Err(err).Msg("connection closed, try to reconnect")
+		time.Sleep(time.Second)
 		c.reconnectLock.Lock()
 		c.reconnect.Store(true)
 		for {
@@ -184,6 +185,7 @@ func (ch *Channel) runConsumer(
 		for msg := range d {
 			deliveries <- msg
 		}
+		time.Sleep(time.Second)
 		if ch.IsClosed() {
 			close(deliveries)
 			break

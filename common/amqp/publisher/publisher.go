@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/ykhdr/crack-hash/common/amqp/connection"
+	"time"
 )
 
 type DeliveryMode uint8
@@ -63,14 +64,17 @@ func (p *publisher[T]) SendMessage(ctx context.Context, message *T, mode Deliver
 	p.l.Debug().Msg("send message")
 	body, err := p.marshal(message)
 	if err != nil {
-		p.l.Error().Err(err).Stack().Msg("failed to marshal message")
+		p.l.Error().Err(err).Msg("failed to marshal message")
 		return errors.Wrap(err, "failed to marshal message")
 	}
 	amqpMsg := p.buildMessage(body, mode)
-	err = p.sendMessage(ctx, mandatory, immediate, amqpMsg)
-	if err != nil {
-		p.l.Error().Err(err).Stack().Msg("failed to send message")
-		return errors.Wrap(err, "failed to send message")
+	for {
+		err = p.sendMessage(ctx, mandatory, immediate, amqpMsg)
+		if err != nil {
+			p.l.Error().Err(err).Msg("failed to send message")
+			time.Sleep(time.Second)
+		}
+		break
 	}
 	return nil
 }

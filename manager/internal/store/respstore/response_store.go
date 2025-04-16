@@ -38,7 +38,10 @@ func (s *responseStore) Save(ctx context.Context, resp *messages.CrackHashWorker
 	defer s.m.Unlock()
 	resps, exists := s.data[resp.RequestId]
 	if !exists {
-		s.data[resp.RequestId] = []*messages.CrackHashWorkerResponse{}
+		if err := s.loadStore(ctx, resp.RequestId); err != nil {
+			return err
+		}
+		resps = s.data[resp.RequestId]
 	}
 	resps = append(resps, resp)
 	s.data[resp.RequestId] = resps
@@ -51,20 +54,11 @@ func (s *responseStore) GetByRequestId(ctx context.Context, id string) ([]*messa
 	defer s.m.RUnlock()
 	resps, exists := s.data[id]
 	if !exists {
-		cursor, err := s.database.Collection(ResponseCollection).Find(ctx, bson.M{"requestId": id})
-		if err != nil {
+		if err := s.loadStore(ctx, id); err != nil {
 			return nil, err
 		}
-		defer func() { _ = cursor.Close(ctx) }()
-		for cursor.Next(ctx) {
-			var resp *messages.CrackHashWorkerResponse
-			if err := cursor.Decode(resp); err != nil {
-				return nil, err
-			}
-			resps = append(resps, resp)
-		}
-		s.data[id] = resps
 	}
+	resps = s.data[id]
 	if len(resps) == 0 {
 		return nil, NotFoundErr
 	}
@@ -98,5 +92,23 @@ func (s *responseStore) DeleteByResponseId(ctx context.Context, id string) error
 	if result.DeletedCount == 0 {
 		return NotFoundErr
 	}
+	return nil
+}
+
+func (s *responseStore) loadStore(ctx context.Context, id string) error {
+	cursor, err := s.database.Collection(ResponseCollection).Find(ctx, bson.M{"requestId": id})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = cursor.Close(ctx) }()
+	var resps []*messages.CrackHashWorkerResponse
+	for cursor.Next(ctx) {
+		var resp *messages.CrackHashWorkerResponse
+		if err := cursor.Decode(resp); err != nil {
+			return err
+		}
+		resps = append(resps, resp)
+	}
+	s.data[id] = resps
 	return nil
 }

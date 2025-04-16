@@ -21,7 +21,7 @@
   ],
   "exchanges": [
     {
-      "name": "crack-request-exchange",
+      "name": "exchange.crack.request",
       "vhost": "/",
       "type": "direct",
       "durable": true,
@@ -30,7 +30,7 @@
       "arguments": {}
     },
     {
-      "name": "crack-response-exchange",
+      "name": "exchange.crack.response",
       "vhost": "/",
       "type": "direct",
       "durable": true,
@@ -41,14 +41,14 @@
   ],
   "queues": [
     {
-      "name": "crack-request-queue",
+      "name": "queue.crack.request",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
       "arguments": {}
     },
     {
-      "name": "crack-response-queue",
+      "name": "queue.crack.response",
       "vhost": "/",
       "durable": true,
       "auto_delete": false,
@@ -57,19 +57,19 @@
   ],
   "bindings": [
     {
-      "source": "crack-request-exchange",
+      "source": "exchange.crack.request",
       "vhost": "/",
-      "destination": "crack-request-queue",
+      "destination": "queue.crack.request",
       "destination_type": "queue",
-      "routing_key": "crack-request",
+      "routing_key": "crack.request",
       "arguments": {}
     },
     {
-      "source": "crack-response-exchange",
+      "source": "exchange.crack.response",
       "vhost": "/",
-      "destination": "crack-response-queue",
+      "destination": "queue.crack.response",
       "destination_type": "queue",
-      "routing_key": "crack-response",
+      "routing_key": "crack.response",
       "arguments": {}
     }
   ]

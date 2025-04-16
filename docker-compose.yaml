@@ -182,7 +182,6 @@ networks:
     driver: bridge
 volumes:
   rabbitmq_data:
-
   mongo_rs_pki:
   mongo_primary_data:
   mongo_secondary1_data:

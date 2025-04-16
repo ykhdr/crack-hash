@@ -219,7 +219,6 @@ func (s *Dispatcher) dispatchTasksToWorkers(
 			if err := s.requestStore.UpdateStatus(ctx, reqInfo.ID, reqInfo.Status, reqInfo.ErrorReason); err != nil {
 				s.l.Error().Err(err).Msg("Error updating request status")
 			}
-			return
 		}
 	}
 	err := s.requestStore.UpdateStatus(ctx, reqInfo.ID, request.StatusInProgress, "")
