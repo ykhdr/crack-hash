@@ -131,14 +131,17 @@ func (s *requestStore) List(ctx context.Context) ([]*request.Info, error) {
 }
 
 func (s *requestStore) Update(ctx context.Context, info *request.Info) error {
+	s.m.RLock()
+	defer s.m.RUnlock()
 	filter := bson.M{"_id": info.ID}
 	update := bson.M{
 		"$set": bson.M{
-			"status":       info.Status,
-			"request":      info.Request,
-			"found_data":   info.FoundData,
-			"created_at":   info.CreatedAt,
-			"error_reason": info.ErrorReason,
+			"status":              info.Status,
+			"request":             info.Request,
+			"found_data":          info.FoundData,
+			"created_at":          info.CreatedAt,
+			"error_reason":        info.ErrorReason,
+			"ready_service_count": info.ReadyServiceCount,
 		},
 	}
 	result, err := s.database.Collection("requests").UpdateOne(ctx, filter, update)

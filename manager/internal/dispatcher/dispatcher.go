@@ -110,7 +110,7 @@ func (s *Dispatcher) Start(ctx context.Context) error {
 	}
 	s.amqpPublisher = publisher.New[messages.CrackHashManagerRequest](ch, s.publisherCfg)
 	s.amqpConsumer = consumer.New(ch, s.handle, s.consumerCfg)
-	go s.routineSavedRequests(ctx)
+	s.routineSavedRequests(ctx)
 	s.amqpConsumer.Subscribe(ctx)
 	return nil
 }
@@ -130,11 +130,13 @@ func (s *Dispatcher) routineSavedRequests(ctx context.Context) {
 			}
 		case request.StatusInProgress:
 			s.l.Debug().Any("request", req).Msgf("Request is in progress")
-			s.requestLock.Lock()
 			responses, err := s.responseStore.GetByRequestId(ctx, string(req.ID))
 			if err != nil {
-				s.l.Error().Err(err).Msg("Error getting responses from store")
-				s.requestLock.Unlock()
+				if errors.Is(err, respstore.NotFoundErr) {
+					s.l.Debug().Err(err).Msg("responses not found")
+					continue
+				}
+				s.l.Error().Err(err).Str("request-id", string(req.ID)).Msg("Error getting responses from store")
 				continue
 			}
 			for _, resp := range responses {
@@ -144,10 +146,8 @@ func (s *Dispatcher) routineSavedRequests(ctx context.Context) {
 			}
 			if err = s.responseStore.DeleteByRequestId(ctx, string(req.ID)); err != nil {
 				s.l.Error().Err(err).Msg("Error deleting response from store")
-				s.requestLock.Unlock()
 				continue
 			}
-			s.requestLock.Unlock()
 		}
 	}
 	s.l.Debug().Msg("Finished routine saved requests")
